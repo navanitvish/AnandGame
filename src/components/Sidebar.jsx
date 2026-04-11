@@ -55,15 +55,15 @@ const mainLinks = [
     icon: Dumbbell,
   },
   {
-    path: '/coach',
-    label: 'Coach',
-    sub: 'Manage coaches',
+    path: '/courts',
+    label: 'Courts',
+    sub: 'Manage Courts',
     icon: Brain,
   },
   {
-    path: '/slot',
-    label: 'Slot',
-    sub: 'Manage slots',
+    path: '/grounds',
+    label: 'grounds',
+    sub: 'Manage Grounds',
     icon: Clock,
   },
   {

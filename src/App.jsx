@@ -9,14 +9,15 @@ import Playground from './pages/Playground'
 import ManageCategories from './pages/Managecategories'
 import PlansPage from './pages/Planspage'
 
-import SlotManagement from './pages/Slotmanagement'
-import CoachManagement from './pages/Coachmanagement'
+
 import BannerPage from './pages/banner/Bannerpage'
 import LocationManagement from './pages/location/LocationManagement'
 import PrivacyPolicy from './pages/privacyPolicy/PrivacyPolicy'
 import TermsConditions from './pages/termsConditions/TermsConditions'
 import Venues from './pages/Venue'
 import Bookings from './pages/Bokkings'
+import Courts from './pages/Courts'
+import SportGrounds from './pages/Sportgrounds'
 
 export default function App() {
   return (
@@ -35,8 +36,8 @@ export default function App() {
           <Route path="/privacy-policys" element={<PrivacyPolicy />} />
           <Route path="/term-conditions" element={<TermsConditions />} />
           <Route path="/plan" element={<PlansPage />} />
-          <Route path="/coach" element={<CoachManagement />} />
-          <Route path="/slot" element={<SlotManagement />} />
+          <Route path="/courts" element={<Courts />} />
+          <Route path="/grounds" element={<SportGrounds />} />
                <Route path="/venue" element={<Venues />} />
                     <Route path="/bookings" element={<Bookings />} />
 
