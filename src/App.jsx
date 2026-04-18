@@ -18,6 +18,8 @@ import Venues from './pages/Venue'
 import Bookings from './pages/Bokkings'
 import Courts from './pages/Courts'
 import SportGrounds from './pages/Sportgrounds'
+import AcaBookings from './pages/academy/AcaBookings'
+import ModernSlotUI from './pages/academy/SportSlots'
 
 export default function App() {
   return (
@@ -38,8 +40,14 @@ export default function App() {
           <Route path="/plan" element={<PlansPage />} />
           <Route path="/courts" element={<Courts />} />
           <Route path="/grounds" element={<SportGrounds />} />
-               <Route path="/venue" element={<Venues />} />
-                    <Route path="/bookings" element={<Bookings />} />
+          <Route path="/venue" element={<Venues />} />
+          <Route path="/bookings" element={<Bookings />} />
+
+          {/* academy  */}
+            <Route path="/booking" element={<AcaBookings />} />
+          <Route path="/slots" element={<ModernSlotUI />} />
+          <Route path="/bookings" element={<Bookings />} />
+          
 
         </Route>
         <Route path="*" element={<Navigate to="/login" />} />

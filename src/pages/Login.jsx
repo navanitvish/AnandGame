@@ -14,12 +14,18 @@ const features = [
   { icon: ShieldCheck,     label: 'Secure & Reliable',   color: 'text-blue-600',    bg: 'bg-blue-50',    border: 'border-blue-200'    },
 ]
 
+// Roles available for login selection
+const ROLES = [
+  { value: 'admin',           label: 'Admin' },
+  { value: 'academy_manager', label: 'Academy Manager' },
+]
+
 export default function Login() {
   const navigate   = useNavigate()
-  const login      = useAuthStore((s) => s.login)      // ← now calls real API internally
+  const login      = useAuthStore((s) => s.login)
   const clearError = useAuthStore((s) => s.clearError)
 
-  const [formData,     setFormData]     = useState({ email: '', password: '' })
+  const [formData,     setFormData]     = useState({ email: '', password: '', role: 'admin' })
   const [showPassword, setShowPassword] = useState(false)
   const [isLoading,    setIsLoading]    = useState(false)
   const [error,        setError]        = useState('')
@@ -40,10 +46,10 @@ export default function Login() {
     setIsLoading(true)
     setError('')
 
-    // login() now sends { type: 'email', email, password, role, fcmToken }
     const result = await login({
       email:    formData.email.trim(),
       password: formData.password,
+      role:     formData.role,          // ← pass selected role to authStore
     })
 
     setIsLoading(false)
@@ -146,6 +152,35 @@ export default function Login() {
                   >
                     {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                   </button>
+                </div>
+              </div>
+
+              {/* Role Selector */}
+              <div className="group">
+                <label className="block text-[11px] font-bold text-neutral-400 uppercase tracking-widest mb-1.5">
+                  Login As
+                </label>
+                <div className="flex gap-2">
+                  {ROLES.map((r) => (
+                    <label
+                      key={r.value}
+                      className={`flex-1 flex items-center justify-center gap-2 cursor-pointer rounded-xl border py-2.5 text-sm font-semibold transition-all duration-200
+                        ${formData.role === r.value
+                          ? 'border-purple-500 bg-purple-50 text-purple-700 ring-2 ring-purple-400/30'
+                          : 'border-neutral-200 bg-white text-neutral-500 hover:border-neutral-300'
+                        }`}
+                    >
+                      <input
+                        type="radio"
+                        name="role"
+                        value={r.value}
+                        checked={formData.role === r.value}
+                        onChange={handleChange}
+                        className="sr-only"
+                      />
+                      {r.label}
+                    </label>
+                  ))}
                 </div>
               </div>
 
