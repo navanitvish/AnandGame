@@ -64,6 +64,7 @@ const academyLinks = [
   { path: '/courts', label: 'Courts', sub: 'Manage Courts', icon: Brain },
  
   { path: '/booking', label: 'Bookings', sub: 'Manage Bookings', icon: Clock },
+   { path: '/courtbooking', label: 'Court Bookings', sub: 'Manage Bookings', icon: Clock },
   // { path: '/academy/performance', label: 'Performance', sub: 'Track results', icon: BarChart2 },
 ]
 
