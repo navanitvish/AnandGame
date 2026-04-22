@@ -136,8 +136,8 @@ export const updateProfile = (data) =>
  * GET /players?search=Luca
  * Returns { data: Player[], total: number }
  */
-export const getUsers = (search = '') =>
-  api.get('/users/get', { params: search ? { search } : {} })
+export const getUsers = (params = {}) =>
+  api.get('/users/getAll', { params })
 
 /**
  * GET /players/:id
@@ -354,6 +354,23 @@ export const getBookings = (page = 1, limit = 10, search = '') =>
  * Returns { success, message, data: Booking }
  */
 export const updateBooking = (id, updates) =>
-  api.put(`/bookings/${id}`, updates)
+  api.put(`/bookings/update/${id}`, updates)
+
+
+export const registerAcademy = async (formData) => {
+  const res = await api.post('/auth/register', formData, {
+    headers: {
+      'Content-Type': 'multipart/form-data',
+    },
+  })
+  return res.data
+}
+
+export const getAcademyManagers = async () => {
+  const res = await api.get('/users/getAll', {
+    params: { role: 'academy_manager' },
+  })
+  return res.data
+}
 
 export default api

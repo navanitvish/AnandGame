@@ -8,13 +8,14 @@ import {
 import api from '../api/api'
 
 // ── API calls ─────────────────────────────────────────────────────────────────
-const getCourts    = ()        => api.get('/courts/getAll')
-const createCourt  = (body)    => api.post('/courts/create', body)           // JSON
-const updateCourt  = (id, body)=> api.put(`/courts/update/${id}`, body)      // JSON
-const deleteCourt  = (id)      => api.delete(`/courts/delete/${id}`)
-const toggleCourt  = (id)      => api.patch(`/courts/${id}/toggle`)
+const getCourts    = ()         => api.get('/courts/getAll')
+const createCourt  = (body)     => api.post('/courts/create', body)
+const updateCourt  = (id, body) => api.put(`/courts/update/${id}`, body)
+const deleteCourt  = (id)       => api.delete(`/courts/delete/${id}`)
+const toggleCourt  = (id)       => api.patch(`/courts/${id}/toggle`)
 
-const fetchGrounds = ()        => api.get('/grounds/getAll')
+const fetchGrounds = () => api.get('/grounds/getAll')
+const fetchSports  = () => api.get('/sports/getAll')
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 const toList  = (res) => {
@@ -36,7 +37,7 @@ const inputCls =
 const labelCls = 'block text-xs font-medium text-gray-500 mb-1.5'
 
 const emptyForm = {
-  groundId: '', name: '', description: '',
+  groundId: '', sportId: '', name: '', description: '',
   pricePerHour: '', status: 'available', isActive: true,
 }
 
@@ -109,6 +110,7 @@ function ViewModal({ court, onClose, onEdit }) {
   const rows = [
     { label: 'Court Name',   value: court.name },
     { label: 'Ground',       value: getName(court.groundId) },
+    { label: 'Sport',        value: getName(court.sportId) },
     { label: 'Price / Hour', value: court.pricePerHour ? `₹${court.pricePerHour}` : '—' },
     { label: 'Status',       value: court.status || '—' },
     { label: 'Is Active',    value: court.isActive ? 'Yes' : 'No' },
@@ -179,7 +181,7 @@ function ViewModal({ court, onClose, onEdit }) {
 }
 
 // ── Form Modal ────────────────────────────────────────────────────────────────
-function CourtFormModal({ show, editCourt, grounds, onClose, onSaved, toast }) {
+function CourtFormModal({ show, editCourt, grounds, sports, onClose, onSaved, toast }) {
   const [form,    setForm]    = useState(emptyForm)
   const [loading, setLoading] = useState(false)
   const [errors,  setErrors]  = useState({})
@@ -188,6 +190,7 @@ function CourtFormModal({ show, editCourt, grounds, onClose, onSaved, toast }) {
     if (editCourt) {
       setForm({
         groundId:     getId(editCourt.groundId) || '',
+        sportId:      getId(editCourt.sportId)  || '',
         name:         editCourt.name            || '',
         description:  editCourt.description     || '',
         pricePerHour: editCourt.pricePerHour    ?? '',
@@ -204,8 +207,9 @@ function CourtFormModal({ show, editCourt, grounds, onClose, onSaved, toast }) {
 
   const validate = () => {
     const e = {}
-    if (!form.groundId)        e.groundId     = 'Ground is required'
-    if (!form.name.trim())     e.name         = 'Name is required'
+    if (!form.groundId)    e.groundId     = 'Ground is required'
+    if (!form.sportId)     e.sportId      = 'Sport is required'
+    if (!form.name.trim()) e.name         = 'Name is required'
     if (!form.pricePerHour || isNaN(Number(form.pricePerHour))) e.pricePerHour = 'Valid price required'
     return e
   }
@@ -214,9 +218,9 @@ function CourtFormModal({ show, editCourt, grounds, onClose, onSaved, toast }) {
     const e = validate()
     if (Object.keys(e).length) { setErrors(e); return }
 
-    // JSON body — exactly matching Postman
     const body = {
       groundId:     form.groundId,
+      sportId:      form.sportId,
       name:         form.name.trim(),
       description:  form.description.trim(),
       pricePerHour: Number(form.pricePerHour),
@@ -278,20 +282,37 @@ function CourtFormModal({ show, editCourt, grounds, onClose, onSaved, toast }) {
 
         <div className="p-6 space-y-6">
 
-          {/* ── Ground ── */}
+          {/* ── Linked References ── */}
           <div>
-            <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-3">Linked Ground *</p>
-            <div>
-              <label className={labelCls}>Ground *</label>
-              <select value={form.groundId}
-                onChange={e => { set('groundId', e.target.value); setErrors(er => ({ ...er, groundId: '' })) }}
-                className={cls('groundId')}>
-                <option value="">Select a ground…</option>
-                {grounds.map(g => (
-                  <option key={g._id || g.id} value={g._id || g.id}>{g.name}</option>
-                ))}
-              </select>
-              {err('groundId')}
+            <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-3">Linked References *</p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {/* Ground */}
+              <div>
+                <label className={labelCls}>Ground *</label>
+                <select value={form.groundId}
+                  onChange={e => { set('groundId', e.target.value); setErrors(er => ({ ...er, groundId: '' })) }}
+                  className={cls('groundId')}>
+                  <option value="">Select a ground…</option>
+                  {grounds.map(g => (
+                    <option key={g._id || g.id} value={g._id || g.id}>{g.name}</option>
+                  ))}
+                </select>
+                {err('groundId')}
+              </div>
+
+              {/* Sport */}
+              <div>
+                <label className={labelCls}>Sport *</label>
+                <select value={form.sportId}
+                  onChange={e => { set('sportId', e.target.value); setErrors(er => ({ ...er, sportId: '' })) }}
+                  className={cls('sportId')}>
+                  <option value="">Select a sport…</option>
+                  {sports.map(s => (
+                    <option key={s._id || s.id} value={s._id || s.id}>{s.name}</option>
+                  ))}
+                </select>
+                {err('sportId')}
+              </div>
             </div>
           </div>
 
@@ -375,6 +396,7 @@ function CourtFormModal({ show, editCourt, grounds, onClose, onSaved, toast }) {
             <pre className="bg-neutral-950 text-green-400 text-[10px] rounded-xl p-4 overflow-x-auto font-mono leading-relaxed">
 {JSON.stringify({
   groundId:     form.groundId     || '<required>',
+  sportId:      form.sportId      || '<required>',
   name:         form.name         || '<required>',
   description:  form.description,
   pricePerHour: form.pricePerHour ? Number(form.pricePerHour) : '<required>',
@@ -413,6 +435,7 @@ export default function Courts() {
 
   const [courts,       setCourts]       = useState([])
   const [grounds,      setGrounds]      = useState([])
+  const [sports,       setSports]       = useState([])
   const [loading,      setLoading]      = useState(true)
   const [search,       setSearch]       = useState('')
   const [viewMode,     setViewMode]     = useState('table')
@@ -423,7 +446,7 @@ export default function Courts() {
   const [deleting,     setDeleting]     = useState(false)
   const [togglingId,   setTogglingId]   = useState(null)
 
-  useEffect(() => { fetchAll(); loadGrounds() }, [])
+  useEffect(() => { fetchAll(); loadDropdowns() }, [])
 
   const fetchAll = async () => {
     setLoading(true)
@@ -437,11 +460,10 @@ export default function Courts() {
     }
   }
 
-  const loadGrounds = async () => {
-    try {
-      const res = await fetchGrounds()
-      setGrounds(toList(res))
-    } catch { /* silent */ }
+  const loadDropdowns = async () => {
+    const [gR, sR] = await Promise.allSettled([fetchGrounds(), fetchSports()])
+    if (gR.status === 'fulfilled') setGrounds(toList(gR.value))
+    if (sR.status === 'fulfilled') setSports(toList(sR.value))
   }
 
   const handleDeleteConfirm = async () => {
@@ -476,7 +498,8 @@ export default function Courts() {
     return (
       c.name?.toLowerCase().includes(q) ||
       c.status?.toLowerCase().includes(q) ||
-      getName(c.groundId).toLowerCase().includes(q)
+      getName(c.groundId).toLowerCase().includes(q) ||
+      getName(c.sportId).toLowerCase().includes(q)
     )
   })
 
@@ -484,11 +507,10 @@ export default function Courts() {
   const availCount  = courts.filter(c => c.status === 'available').length
 
   const stats = [
-    { label:'Total Courts',  value: courts.length,              sub:`${activeCount} active`,    icon: Grid,       color:'bg-purple-600' },
-    { label:'Active',        value: activeCount,                sub:'visible to users',         icon: Shield,     color:'bg-green-600'  },
-    { label:'Available',     value: availCount,                 sub:'ready to book',            icon: CheckCircle,color:'bg-blue-600'   },
-    { label:'Grounds',       value: new Set(courts.map(c => getId(c.groundId))).size,
-                                                                sub:'linked',                   icon: MapPin,     color:'bg-black'      },
+    { label:'Total Courts', value: courts.length,  sub:`${activeCount} active`,  icon: Grid,        color:'bg-purple-600' },
+    { label:'Active',       value: activeCount,     sub:'visible to users',       icon: Shield,      color:'bg-green-600'  },
+    { label:'Available',    value: availCount,      sub:'ready to book',          icon: CheckCircle, color:'bg-blue-600'   },
+    { label:'Grounds',      value: new Set(courts.map(c => getId(c.groundId))).size, sub:'linked',   icon: MapPin,         color:'bg-black'      },
   ]
 
   return (
@@ -510,7 +532,7 @@ export default function Courts() {
 
       <CourtFormModal
         show={showForm} editCourt={editCourt}
-        grounds={grounds}
+        grounds={grounds} sports={sports}
         onClose={() => { setShowForm(false); setEditCourt(null) }}
         onSaved={fetchAll} toast={toast}
       />
@@ -558,7 +580,7 @@ export default function Courts() {
       <div className="flex flex-wrap items-center gap-3">
         <div className="flex items-center gap-2 bg-white border border-neutral-200 rounded-lg px-3 py-2 flex-1 min-w-48 max-w-sm">
           <Search className="h-3.5 w-3.5 text-neutral-400 shrink-0" />
-          <input type="text" placeholder="Search name, ground, status..."
+          <input type="text" placeholder="Search name, ground, sport, status..."
             value={search} onChange={e => setSearch(e.target.value)}
             className="bg-transparent text-xs text-black outline-none w-full placeholder:text-neutral-400" />
           {search && (
@@ -596,7 +618,7 @@ export default function Courts() {
           <table className="w-full text-sm">
             <thead className="bg-neutral-50 border-b border-neutral-200">
               <tr>
-                {['#','Name','Ground','Description','Price / hr','Status','Active','Actions'].map(h => (
+                {['#','Name','Ground','Sport','Description','Price / hr','Status','Active','Actions'].map(h => (
                   <th key={h} className="text-left px-4 py-3 text-[11px] text-neutral-400 font-semibold whitespace-nowrap">{h}</th>
                 ))}
               </tr>
@@ -604,7 +626,7 @@ export default function Courts() {
             <tbody>
               {filtered.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="text-center py-14 text-neutral-400 text-sm">
+                  <td colSpan={9} className="text-center py-14 text-neutral-400 text-sm">
                     <Grid className="h-7 w-7 mx-auto mb-2 text-neutral-200" />
                     No courts found
                   </td>
@@ -633,8 +655,15 @@ export default function Courts() {
                       </span>
                     </td>
 
+                    {/* Sport */}
+                    <td className="px-4 py-3">
+                      <span className="text-xs text-blue-700 bg-blue-50 px-2 py-0.5 rounded-full whitespace-nowrap">
+                        {getName(c.sportId)}
+                      </span>
+                    </td>
+
                     {/* Description */}
-                    <td className="px-4 py-3 max-w-[160px]">
+                    <td className="px-4 py-3 max-w-[140px]">
                       <p className="text-xs text-neutral-500 truncate">{c.description || '—'}</p>
                     </td>
 
@@ -735,6 +764,9 @@ export default function Courts() {
                   <div className="flex flex-wrap gap-1.5 mb-3">
                     <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium border capitalize ${statusColor(c.status)}`}>
                       {c.status || 'unknown'}
+                    </span>
+                    <span className="text-[10px] bg-blue-50 text-blue-700 border border-blue-200 px-2 py-0.5 rounded-full font-medium">
+                      {getName(c.sportId)}
                     </span>
                     {c.pricePerHour && (
                       <span className="text-[10px] bg-green-50 text-green-700 border border-green-200 px-2 py-0.5 rounded-full font-medium">

@@ -14,8 +14,14 @@ const updateGround = (id, fd)  => api.put(`/grounds/update/${id}`, fd)
 const deleteGround = (id)      => api.delete(`/grounds/delete/${id}`)
 const toggleGround = (id)      => api.patch(`/grounds/${id}/toggle`)
 
-const fetchVenues = () => api.get('/venues/getAll')
-const fetchSports = () => api.get('/sports/getAll')
+const fetchVenues  = () => api.get('/venues/getAll')
+const fetchSports  = () => api.get('/sports/getAll')
+const getAcademyManagers = async () => {
+  const res = await api.get('/users/getAll', {
+    params: { role: 'academy_manager' },
+  })
+  return res.data
+}
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 const toList  = (res) => {
@@ -39,7 +45,7 @@ const GROUND_TYPES = ['cricket', 'football', 'basketball', 'tennis', 'badminton'
 const STATUS_OPTS  = ['available', 'unavailable', 'maintenance']
 
 const emptyForm = {
-  venueId: '', sportId: '', name: '', description: '',
+  venueId: '', sportId: '', academyId: '', name: '', description: '',
   type: '', openingTime: '', closingTime: '',
   pricePerHour: '', status: 'available', isActive: 'true',
 }
@@ -99,16 +105,17 @@ function ConfirmModal({ show, name, loading, onConfirm, onCancel }) {
 function ViewModal({ ground, onClose, onEdit }) {
   if (!ground) return null
   const rows = [
-    { label: 'Name',         value: ground.name },
-    { label: 'Venue',        value: getName(ground.venueId) },
-    { label: 'Sport',        value: getName(ground.sportId) },
-    { label: 'Type',         value: ground.type || '—' },
-    { label: 'Opening Time', value: ground.openingTime || '—' },
-    { label: 'Closing Time', value: ground.closingTime  || '—' },
-    { label: 'Price/Hour',   value: ground.pricePerHour ? `₹${ground.pricePerHour}` : '—' },
-    { label: 'Status',       value: ground.status || '—' },
-    { label: 'Active',       value: ground.isActive ? 'Yes' : 'No' },
-    { label: 'Created',      value: ground.createdAt ? new Date(ground.createdAt).toLocaleDateString('en-IN', { day:'2-digit', month:'short', year:'numeric' }) : '—' },
+    { label: 'Name',            value: ground.name },
+    { label: 'Venue',           value: getName(ground.venueId) },
+    { label: 'Sport',           value: getName(ground.sportId) },
+    { label: 'Academy Manager', value: getName(ground.academyManagerId) },
+    { label: 'Type',            value: ground.type || '—' },
+    { label: 'Opening Time',    value: ground.openingTime || '—' },
+    { label: 'Closing Time',    value: ground.closingTime  || '—' },
+    { label: 'Price/Hour',      value: ground.pricePerHour ? `₹${ground.pricePerHour}` : '—' },
+    { label: 'Status',          value: ground.status || '—' },
+    { label: 'Active',          value: ground.isActive ? 'Yes' : 'No' },
+    { label: 'Created',         value: ground.createdAt ? new Date(ground.createdAt).toLocaleDateString('en-IN', { day:'2-digit', month:'short', year:'numeric' }) : '—' },
   ]
 
   return (
@@ -248,7 +255,7 @@ function BannerUpload({ banners, setBanners, existingBanners }) {
 }
 
 // ── Form Modal ────────────────────────────────────────────────────────────────
-function GroundFormModal({ show, editGround, venues, sports, onClose, onSaved, toast }) {
+function GroundFormModal({ show, editGround, venues, sports, academyOptions, onClose, onSaved, toast }) {
   const [form,    setForm]    = useState(emptyForm)
   const [banners, setBanners] = useState([])   // File[]
   const [loading, setLoading] = useState(false)
@@ -257,16 +264,17 @@ function GroundFormModal({ show, editGround, venues, sports, onClose, onSaved, t
   useEffect(() => {
     if (editGround) {
       setForm({
-        venueId:      getId(editGround.venueId) || '',
-        sportId:      getId(editGround.sportId) || '',
-        name:         editGround.name        || '',
-        description:  editGround.description  || '',
-        type:         editGround.type         || '',
-        openingTime:  editGround.openingTime  || '',
-        closingTime:  editGround.closingTime  || '',
-        pricePerHour: editGround.pricePerHour ?? '',
-        status:       editGround.status       || 'available',
-        isActive:     String(editGround.isActive ?? true),
+        venueId:           getId(editGround.venueId)           || '',
+        sportId:           getId(editGround.sportId)           || '',
+        academyId:         getId(editGround.academyId)            || '',
+        name:              editGround.name        || '',
+        description:       editGround.description  || '',
+        type:              editGround.type         || '',
+        openingTime:       editGround.openingTime  || '',
+        closingTime:       editGround.closingTime  || '',
+        pricePerHour:      editGround.pricePerHour ?? '',
+        status:            editGround.status       || 'available',
+        isActive:          String(editGround.isActive ?? true),
       })
     } else {
       setForm(emptyForm)
@@ -294,18 +302,17 @@ function GroundFormModal({ show, editGround, venues, sports, onClose, onSaved, t
     if (Object.keys(e).length) { setErrors(e); return }
 
     const fd = new FormData()
-    // Exact keys from Postman
-    fd.append('venueId',      form.venueId)
-    fd.append('sportId',      form.sportId)
-    fd.append('name',         form.name.trim())
-    fd.append('description',  form.description.trim())
-    fd.append('type',         form.type)
-    fd.append('openingTime',  form.openingTime)
-    fd.append('closingTime',  form.closingTime)
-    fd.append('pricePerHour', form.pricePerHour)
-    fd.append('status',       form.status)
-    fd.append('isActive',     form.isActive)
-    // Multiple banners with same key "banners"
+    fd.append('venueId',          form.venueId)
+    fd.append('sportId',          form.sportId)
+    if (form.academyId) fd.append('academyId', form.academyId)
+    fd.append('name',             form.name.trim())
+    fd.append('description',      form.description.trim())
+    fd.append('type',             form.type)
+    fd.append('openingTime',      form.openingTime)
+    fd.append('closingTime',      form.closingTime)
+    fd.append('pricePerHour',     form.pricePerHour)
+    fd.append('status',           form.status)
+    fd.append('isActive',         form.isActive)
     banners.forEach(f => fd.append('banners', f))
 
     setLoading(true)
@@ -393,8 +400,11 @@ function GroundFormModal({ show, editGround, venues, sports, onClose, onSaved, t
           <div>
             <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-3">Linked References *</p>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <DropDown label="Venue"  k="venueId" options={venues} ph="Select venue" required />
-              <DropDown label="Sport"  k="sportId" options={sports} ph="Select sport" required />
+              <DropDown label="Venue"           k="venueId"          options={venues}         ph="Select venue"           required />
+              <DropDown label="Sport"           k="sportId"          options={sports}         ph="Select sport"           required />
+              <div className="sm:col-span-2">
+                <DropDown label="Academy Manager" k="academyId" options={academyOptions} ph="Select academy manager" />
+              </div>
             </div>
           </div>
 
@@ -485,18 +495,19 @@ function GroundFormModal({ show, editGround, venues, sports, onClose, onSaved, t
 export default function SportGrounds() {
   const { toasts, show: toast } = useToast()
 
-  const [grounds,      setGrounds]      = useState([])
-  const [venues,       setVenues]       = useState([])
-  const [sports,       setSports]       = useState([])
-  const [loading,      setLoading]      = useState(true)
-  const [search,       setSearch]       = useState('')
-  const [viewMode,     setViewMode]     = useState('table')
-  const [showForm,     setShowForm]     = useState(false)
-  const [editGround,   setEditGround]   = useState(null)
-  const [viewGround,   setViewGround]   = useState(null)
-  const [deleteTarget, setDeleteTarget] = useState(null)
-  const [deleting,     setDeleting]     = useState(false)
-  const [togglingId,   setTogglingId]   = useState(null)
+  const [grounds,          setGrounds]          = useState([])
+  const [venues,           setVenues]           = useState([])
+  const [sports,           setSports]           = useState([])
+  const [academyManagers,  setAcademyManagers]  = useState([])
+  const [loading,          setLoading]          = useState(true)
+  const [search,           setSearch]           = useState('')
+  const [viewMode,         setViewMode]         = useState('table')
+  const [showForm,         setShowForm]         = useState(false)
+  const [editGround,       setEditGround]       = useState(null)
+  const [viewGround,       setViewGround]       = useState(null)
+  const [deleteTarget,     setDeleteTarget]     = useState(null)
+  const [deleting,         setDeleting]         = useState(false)
+  const [togglingId,       setTogglingId]       = useState(null)
 
   useEffect(() => { fetchAll(); loadDropdowns() }, [])
 
@@ -513,10 +524,21 @@ export default function SportGrounds() {
   }
 
   const loadDropdowns = async () => {
-    const [vR, sR] = await Promise.allSettled([fetchVenues(), fetchSports()])
-    if (vR.status === 'fulfilled') setVenues(toList(vR.value))
-    if (sR.status === 'fulfilled') setSports(toList(sR.value))
+    const [vR, sR, amR] = await Promise.allSettled([fetchVenues(), fetchSports(), getAcademyManagers()])
+    if (vR.status  === 'fulfilled') setVenues(toList(vR.value))
+    if (sR.status  === 'fulfilled') setSports(toList(sR.value))
+    if (amR.status === 'fulfilled') setAcademyManagers(toList(amR.value))
   }
+
+  // Normalise academy managers → { _id, name } regardless of backend shape
+  // _id  = academyId (the field we POST to the backend)
+  // name = academy name for display, falling back through user fields
+  const academyOptions = academyManagers
+    .map(u => ({
+      _id:  u.academyId || u.academyId || u.academyId || '',
+      name: u.academy?.name || u.name || u.fullName || u.username || u.email || u._id || u.id || 'Unknown',
+    }))
+    .filter(o => o._id)   // drop any entry missing an id
 
   const handleDeleteConfirm = async () => {
     setDeleting(true)
@@ -559,10 +581,10 @@ export default function SportGrounds() {
 
   const activeCount = grounds.filter(g => g.isActive).length
   const stats = [
-    { label:'Total Grounds', value:grounds.length,               sub:`${activeCount} active`,  icon:Map,         color:'bg-purple-600' },
-    { label:'Active',        value:activeCount,                  sub:'available now',           icon:Shield,      color:'bg-green-600'  },
-    { label:'Inactive',      value:grounds.length - activeCount, sub:'not available',           icon:Layers,      color:'bg-neutral-600'},
-    { label:'Venues',        value:new Set(grounds.map(g=>getId(g.venueId))).size, sub:'linked',icon:MapPin,      color:'bg-black'      },
+    { label:'Total Grounds', value:grounds.length,               sub:`${activeCount} active`,  icon:Map,    color:'bg-purple-600' },
+    { label:'Active',        value:activeCount,                  sub:'available now',           icon:Shield, color:'bg-green-600'  },
+    { label:'Inactive',      value:grounds.length - activeCount, sub:'not available',           icon:Layers, color:'bg-neutral-600'},
+    { label:'Venues',        value:new Set(grounds.map(g=>getId(g.venueId))).size, sub:'linked',icon:MapPin, color:'bg-black'      },
   ]
 
   const statusColor = (s) => {
@@ -585,6 +607,7 @@ export default function SportGrounds() {
       <GroundFormModal
         show={showForm} editGround={editGround}
         venues={venues} sports={sports}
+        academyOptions={academyOptions}
         onClose={() => { setShowForm(false); setEditGround(null) }}
         onSaved={fetchAll} toast={toast}
       />
@@ -596,7 +619,7 @@ export default function SportGrounds() {
             <div className="w-9 h-9 bg-purple-600 rounded-xl flex items-center justify-center">
               <MapPin className="h-4 w-4 text-white" />
             </div>
-            <h1 className="text-2xl font-bold text-black">Sport Grounds</h1>
+            <h1 className="text-2xl font-bold text-black"> Grounds</h1>
           </div>
           <p className="text-neutral-500 text-sm">Manage all sport grounds — venue & sport linked</p>
         </div>

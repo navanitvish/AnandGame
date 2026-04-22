@@ -129,7 +129,7 @@ const CategoryModal = ({ isOpen, onClose, onSave, category, loading }) => {
             <label className={labelCls}>Category Name *</label>
             <input
               type="text" name="name"
-              placeholder="e.g. Sofas"
+              placeholder="e.g. games,coaching"
               value={formData.name} onChange={handleChange}
               disabled={loading}
               className={inputCls + ' disabled:opacity-50'}

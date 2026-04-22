@@ -17,9 +17,12 @@ const fetchVenues     = () => api.get('/venues/getAll')
 const fetchSports     = () => api.get('/sports/getAll')
 const fetchCategories = () => api.get('/categories/getAll')
 
-// ── Response shape:
-// venueId / sportId / categoryId are POPULATED objects: { _id, name, image, description }
-// So: g.venueId.name, g.sportId.name, g.categoryId.name
+export const getAcademyManagers = async () => {
+  const res = await api.get('/users/getAll', {
+    params: { role: 'academy_manager' },
+  })
+  return res.data
+}
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 const toList = (res) => {
@@ -29,7 +32,6 @@ const toList = (res) => {
   return []
 }
 
-// field can be a string ID or populated { _id, name }
 const getId   = (f) => (typeof f === 'object' && f !== null ? f?._id  : f) || ''
 const getName = (f) => (typeof f === 'object' && f !== null ? f?.name : f) || '—'
 const getImg  = (f) => (typeof f === 'object' && f !== null ? f?.image : null) || null
@@ -42,11 +44,25 @@ const inputCls =
 const labelCls = 'block text-xs font-medium text-gray-500 mb-1.5'
 
 const emptyForm = {
-  venueId:'', sportId:'', categoryId:'', name:'', description:'',
-  coach:'', openingTime:'', closingTime:'', level:'',
-  sportDurationInHours:'', sportDate:'', maxPlayers:'',
-  minPlayers:'', maxTeams:'', minTeams:'',
-  isPrivate:'false', isAvailable:'true', isActive:'true',
+  venueId:              '',
+  sportId:              '',
+  categoryId:           '',
+  academyId:            '',
+  name:                 '',
+  description:          '',
+  coach:                '',
+  openingTime:          '',
+  closingTime:          '',
+  level:                '',
+  sportDurationInHours: '',
+  sportDate:            '',
+  maxPlayers:           '',
+  minPlayers:           '',
+  maxTeams:             '',
+  minTeams:             '',
+  isPrivate:            'false',
+  isAvailable:          'true',
+  isActive:             'true',
 }
 
 // ── Toast ─────────────────────────────────────────────────────────────────────
@@ -106,6 +122,7 @@ function ViewModal({ ground, onClose, onEdit }) {
     { label: 'Venue',          value: getName(ground.venueId) },
     { label: 'Sport',          value: getName(ground.sportId) },
     { label: 'Category',       value: getName(ground.categoryId) },
+    { label: 'Academy',        value: getName(ground.academyId) },
     { label: 'Coach',          value: ground.coach || '—' },
     { label: 'Level',          value: (ground.level && ground.level !== 'null') ? ground.level : '—' },
     { label: 'Duration (hrs)', value: ground.sportDurationInHours ?? '—' },
@@ -178,7 +195,7 @@ function ViewModal({ ground, onClose, onEdit }) {
 }
 
 // ── Form Modal ────────────────────────────────────────────────────────────────
-function GroundFormModal({ show, editGround, venues, sports, categories, onClose, onSaved, toast }) {
+function GroundFormModal({ show, editGround, venues, sports, categories, academyManagers, onClose, onSaved, toast }) {
   const fileRef = useRef(null)
   const [form, setForm]       = useState(emptyForm)
   const [preview, setPreview] = useState(null)
@@ -192,6 +209,7 @@ function GroundFormModal({ show, editGround, venues, sports, categories, onClose
         venueId:              getId(editGround.venueId)    || '',
         sportId:              getId(editGround.sportId)    || '',
         categoryId:           getId(editGround.categoryId) || '',
+        academyId:            getId(editGround.academyId)  || '',
         name:                 editGround.name                 || '',
         description:          editGround.description          || '',
         coach:                editGround.coach                || '',
@@ -222,6 +240,7 @@ function GroundFormModal({ show, editGround, venues, sports, categories, onClose
     if (!form.venueId)     e.venueId    = 'Venue required'
     if (!form.sportId)     e.sportId    = 'Sport required'
     if (!form.categoryId)  e.categoryId = 'Category required'
+    if (!form.academyId)   e.academyId  = 'Academy required'
     if (!form.name.trim()) e.name       = 'Name required'
     return e
   }
@@ -229,17 +248,44 @@ function GroundFormModal({ show, editGround, venues, sports, categories, onClose
   const handleSubmit = async () => {
     const e = validate()
     if (Object.keys(e).length) { setErrors(e); return }
+
     const fd = new FormData()
-    Object.entries({
-      venueId: form.venueId, sportId: form.sportId, categoryId: form.categoryId,
-      name: form.name.trim(), description: form.description.trim(),
-      coach: form.coach.trim(), openingTime: form.openingTime, closingTime: form.closingTime,
-      level: form.level, sportDurationInHours: form.sportDurationInHours,
-      sportDate: form.sportDate, maxPlayers: form.maxPlayers, minPlayers: form.minPlayers,
-      maxTeams: form.maxTeams, minTeams: form.minTeams,
-      isPrivate: form.isPrivate, isAvailable: form.isAvailable, isActive: form.isActive,
-    }).forEach(([k, v]) => fd.append(k, v))
+
+    // ── Full payload — every field sent to the API ────────────────────────────
+    const payload = {
+      venueId:              form.venueId,
+      sportId:              form.sportId,
+      categoryId:           form.categoryId,
+      academyId:            form.academyId,        // ← "academyId" key
+      name:                 form.name.trim(),
+      description:          form.description.trim(),
+      coach:                form.coach.trim(),
+      openingTime:          form.openingTime,
+      closingTime:          form.closingTime,
+      level:                form.level,
+      sportDurationInHours: form.sportDurationInHours,
+      sportDate:            form.sportDate,
+      maxPlayers:           form.maxPlayers,
+      minPlayers:           form.minPlayers,
+      maxTeams:             form.maxTeams,
+      minTeams:             form.minTeams,
+      isPrivate:            form.isPrivate,
+      isAvailable:          form.isAvailable,
+      isActive:             form.isActive,
+    }
+
+    // ── Open browser DevTools → Console to inspect before the request fires ──
+    console.table(payload)
+
+    // Append all non-empty values
+    Object.entries(payload).forEach(([k, v]) => {
+      if (v !== '' && v !== null && v !== undefined) fd.append(k, v)
+    })
     if (file) fd.append('image', file)
+
+    // Confirm what's actually in FormData
+    console.log('📦 FormData keys being sent:')
+    for (const [k, v] of fd.entries()) console.log(`   ${k} →`, v)
 
     setLoading(true)
     try {
@@ -252,7 +298,10 @@ function GroundFormModal({ show, editGround, venues, sports, categories, onClose
       }
       onSaved(); onClose()
     } catch (err) {
-      toast(err.message || 'Something went wrong', 'error')
+      // Show the real backend message if available
+      const msg = err?.response?.data?.message || err.message || 'Something went wrong'
+      toast(msg, 'error')
+      console.error('❌ API error:', err?.response?.data || err)
     } finally {
       setLoading(false)
     }
@@ -277,7 +326,11 @@ function GroundFormModal({ show, editGround, venues, sports, categories, onClose
         onChange={e => { set(k, e.target.value); setErrors(er => ({ ...er, [k]: '' })) }}
         className={`${inputCls} ${errors[k] ? 'border-red-300' : ''}`}>
         <option value="">{ph}</option>
-        {options.map(o => <option key={o._id || o.id} value={o._id || o.id}>{o.name}</option>)}
+        {options.map(o => (
+          <option key={o._id || o.id} value={o._id || o.id}>
+            {o.name}
+          </option>
+        ))}
       </select>
       {errors[k] && <p className="text-xs text-red-500 mt-1">{errors[k]}</p>}
     </div>
@@ -293,9 +346,20 @@ function GroundFormModal({ show, editGround, venues, sports, categories, onClose
     </div>
   )
 
+  // Normalise academy managers → { _id, name } regardless of backend shape
+  // Priority: name → fullName → username → email → raw _id
+  const academyOptions = academyManagers
+    .map(u => ({
+      _id:  u.academy._id  || u.academy.id  || '',
+      name: u.name || u.fullName || u.username || u.email || u._id || u.id || 'Unknown',
+    }))
+    .filter(o => o._id)   // drop any entry missing an id
+
   return (
     <div className="fixed inset-0 bg-black/40 z-40 flex items-center justify-center backdrop-blur-sm p-4">
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[92vh] overflow-y-auto">
+
+        {/* ── Header ── */}
         <div className="sticky top-0 bg-white flex items-center justify-between px-6 py-4 border-b border-gray-100 z-10">
           <div className="flex items-center gap-3">
             <div className={`w-8 h-8 rounded-xl flex items-center justify-center ${editGround ? 'bg-amber-50 border border-amber-200' : 'bg-purple-50 border border-purple-200'}`}>
@@ -312,17 +376,19 @@ function GroundFormModal({ show, editGround, venues, sports, categories, onClose
         </div>
 
         <div className="p-6 space-y-6">
-          {/* Linked IDs */}
+
+          {/* ── Linked References ── */}
           <div>
             <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-3">Linked References *</p>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-              <DropDown label="Venue *"    k="venueId"    options={venues}     ph="Select venue" />
-              <DropDown label="Sport *"    k="sportId"    options={sports}     ph="Select sport" />
-              <DropDown label="Category *" k="categoryId" options={categories} ph="Select category" />
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <DropDown label="Venue *"    k="venueId"    options={venues}         ph="Select venue" />
+              <DropDown label="Sport *"    k="sportId"    options={sports}         ph="Select sport" />
+              <DropDown label="Category *" k="categoryId" options={categories}     ph="Select category" />
+              <DropDown label="Academy *"  k="academyId"  options={academyOptions} ph="Select academy" />
             </div>
           </div>
 
-          {/* Basic Info */}
+          {/* ── Basic Info ── */}
           <div>
             <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-3">Basic Info</p>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -338,7 +404,7 @@ function GroundFormModal({ show, editGround, venues, sports, categories, onClose
             </div>
           </div>
 
-          {/* Timing */}
+          {/* ── Timing ── */}
           <div>
             <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-3">Timing</p>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
@@ -349,7 +415,7 @@ function GroundFormModal({ show, editGround, venues, sports, categories, onClose
             </div>
           </div>
 
-          {/* Players & Teams */}
+          {/* ── Players & Teams ── */}
           <div>
             <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-3">Players & Teams</p>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
@@ -360,7 +426,7 @@ function GroundFormModal({ show, editGround, venues, sports, categories, onClose
             </div>
           </div>
 
-          {/* Settings */}
+          {/* ── Settings ── */}
           <div>
             <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-3">Settings</p>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
@@ -377,7 +443,7 @@ function GroundFormModal({ show, editGround, venues, sports, categories, onClose
             </div>
           </div>
 
-          {/* Image */}
+          {/* ── Image ── */}
           <div>
             <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-3">Image</p>
             <div onClick={() => fileRef.current?.click()}
@@ -400,6 +466,7 @@ function GroundFormModal({ show, editGround, venues, sports, categories, onClose
           </div>
         </div>
 
+        {/* ── Footer ── */}
         <div className="sticky bottom-0 bg-white px-6 py-4 border-t border-gray-100 flex gap-3">
           <button onClick={onClose} disabled={loading}
             className="flex-1 py-2.5 text-sm rounded-xl border border-gray-200 text-gray-600 hover:bg-gray-50 disabled:opacity-50">Cancel</button>
@@ -422,19 +489,20 @@ function GroundFormModal({ show, editGround, venues, sports, categories, onClose
 export default function SportGrounds() {
   const { toasts, show: toast } = useToast()
 
-  const [grounds,      setGrounds]      = useState([])
-  const [venues,       setVenues]       = useState([])
-  const [sports,       setSports]       = useState([])
-  const [categories,   setCategories]   = useState([])
-  const [loading,      setLoading]      = useState(true)
-  const [search,       setSearch]       = useState('')
-  const [viewMode,     setViewMode]     = useState('table')
-  const [showForm,     setShowForm]     = useState(false)
-  const [editGround,   setEditGround]   = useState(null)
-  const [viewGround,   setViewGround]   = useState(null)
-  const [deleteTarget, setDeleteTarget] = useState(null)
-  const [deleting,     setDeleting]     = useState(false)
-  const [togglingId,   setTogglingId]   = useState(null)
+  const [grounds,         setGrounds]         = useState([])
+  const [venues,          setVenues]          = useState([])
+  const [sports,          setSports]          = useState([])
+  const [categories,      setCategories]      = useState([])
+  const [academyManagers, setAcademyManagers] = useState([])
+  const [loading,         setLoading]         = useState(true)
+  const [search,          setSearch]          = useState('')
+  const [viewMode,        setViewMode]        = useState('table')
+  const [showForm,        setShowForm]        = useState(false)
+  const [editGround,      setEditGround]      = useState(null)
+  const [viewGround,      setViewGround]      = useState(null)
+  const [deleteTarget,    setDeleteTarget]    = useState(null)
+  const [deleting,        setDeleting]        = useState(false)
+  const [togglingId,      setTogglingId]      = useState(null)
 
   useEffect(() => { fetchAll(); loadDropdowns() }, [])
 
@@ -451,10 +519,20 @@ export default function SportGrounds() {
   }
 
   const loadDropdowns = async () => {
-    const [vR, sR, cR] = await Promise.allSettled([fetchVenues(), fetchSports(), fetchCategories()])
+    const [vR, sR, cR, aR] = await Promise.allSettled([
+      fetchVenues(),
+      fetchSports(),
+      fetchCategories(),
+      getAcademyManagers(),
+    ])
     if (vR.status === 'fulfilled') setVenues(toList(vR.value))
     if (sR.status === 'fulfilled') setSports(toList(sR.value))
     if (cR.status === 'fulfilled') setCategories(toList(cR.value))
+    if (aR.status === 'fulfilled') {
+      const list = toList(aR.value)
+      console.log('🟢 Raw academy managers from API:', list)
+      setAcademyManagers(list)
+    }
   }
 
   const handleDeleteConfirm = async () => {
@@ -492,15 +570,16 @@ export default function SportGrounds() {
       g.coach?.toLowerCase().includes(q) ||
       getName(g.venueId).toLowerCase().includes(q) ||
       getName(g.sportId).toLowerCase().includes(q) ||
-      getName(g.categoryId).toLowerCase().includes(q)
+      getName(g.categoryId).toLowerCase().includes(q) ||
+      getName(g.academyId).toLowerCase().includes(q)
     )
   })
 
   const activeCount = grounds.filter(g => g.isActive).length
   const stats = [
-    { label:'Total Grounds', value:grounds.length,              sub:`${activeCount} active`,  icon:Map,      color:'bg-purple-600' },
-    { label:'Active',        value:activeCount,                 sub:'available now',          icon:Shield,   color:'bg-green-600'  },
-    { label:'Inactive',      value:grounds.length - activeCount,sub:'not available',          icon:Layers,   color:'bg-neutral-600'},
+    { label:'Total Grounds', value:grounds.length,               sub:`${activeCount} active`, icon:Map,      color:'bg-purple-600' },
+    { label:'Active',        value:activeCount,                  sub:'available now',         icon:Shield,   color:'bg-green-600'  },
+    { label:'Inactive',      value:grounds.length - activeCount, sub:'not available',         icon:Layers,   color:'bg-neutral-600'},
     { label:'Sports',        value:new Set(grounds.map(g=>getId(g.sportId))).size, sub:'types', icon:Calendar, color:'bg-black'    },
   ]
 
@@ -514,10 +593,17 @@ export default function SportGrounds() {
       <ViewModal ground={viewGround} onClose={() => setViewGround(null)}
         onEdit={g => { setEditGround(g); setShowForm(true) }} />
 
-      <GroundFormModal show={showForm} editGround={editGround}
-        venues={venues} sports={sports} categories={categories}
+      <GroundFormModal
+        show={showForm}
+        editGround={editGround}
+        venues={venues}
+        sports={sports}
+        categories={categories}
+        academyManagers={academyManagers}
         onClose={() => { setShowForm(false); setEditGround(null) }}
-        onSaved={fetchAll} toast={toast} />
+        onSaved={fetchAll}
+        toast={toast}
+      />
 
       {/* Header */}
       <div className="flex items-start justify-between">
@@ -562,7 +648,7 @@ export default function SportGrounds() {
       <div className="flex flex-wrap items-center gap-3">
         <div className="flex items-center gap-2 bg-white border border-neutral-200 rounded-lg px-3 py-2 flex-1 min-w-48 max-w-sm">
           <Search className="h-3.5 w-3.5 text-neutral-400 shrink-0" />
-          <input type="text" placeholder="Search name, coach, venue, sport..."
+          <input type="text" placeholder="Search name, coach, venue, sport, academy..."
             value={search} onChange={e => setSearch(e.target.value)}
             className="bg-transparent text-xs text-black outline-none w-full placeholder:text-neutral-400" />
         </div>
@@ -593,14 +679,14 @@ export default function SportGrounds() {
           <table className="w-full text-sm">
             <thead className="bg-neutral-50 border-b border-neutral-200">
               <tr>
-                {['#','Image','Name','Venue','Sport','Category','Coach','Timing','Players','Date','Status','Actions'].map(h => (
+                {['#','Image','Name','Venue','Sport','Category','Academy','Coach','Timing','Players','Date','Status','Actions'].map(h => (
                   <th key={h} className="text-left px-4 py-3 text-[11px] text-neutral-400 font-semibold whitespace-nowrap">{h}</th>
                 ))}
               </tr>
             </thead>
             <tbody>
               {filtered.length === 0 ? (
-                <tr><td colSpan={12} className="text-center py-14 text-neutral-400 text-sm">
+                <tr><td colSpan={13} className="text-center py-14 text-neutral-400 text-sm">
                   <MapPin className="h-7 w-7 mx-auto mb-2 text-neutral-200" />No grounds found
                 </td></tr>
               ) : filtered.map((g, i) => {
@@ -608,22 +694,16 @@ export default function SportGrounds() {
                 return (
                   <tr key={id} className="border-b border-neutral-100 hover:bg-neutral-50 transition-colors">
                     <td className="px-4 py-3 text-neutral-400 text-xs">{i + 1}</td>
-
-                    {/* Image */}
                     <td className="px-4 py-3">
                       {g.image
                         ? <img src={g.image} alt={g.name} className="w-10 h-10 rounded-lg object-cover border border-gray-100" onError={e=>e.target.style.display='none'} />
                         : <div className="w-10 h-10 rounded-lg bg-purple-100 flex items-center justify-center"><MapPin className="h-4 w-4 text-purple-500" /></div>
                       }
                     </td>
-
-                    {/* Name */}
                     <td className="px-4 py-3">
                       <p className="text-xs font-semibold text-black">{g.name}</p>
                       {g.level && g.level !== 'null' && <p className="text-[10px] text-neutral-400 mt-0.5">{g.level}</p>}
                     </td>
-
-                    {/* Venue — populated object, show image + name */}
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-1.5">
                         {getImg(g.venueId) && (
@@ -634,30 +714,27 @@ export default function SportGrounds() {
                         </span>
                       </div>
                     </td>
-
-                    {/* Sport — populated */}
                     <td className="px-4 py-3">
                       <span className="text-xs text-purple-700 bg-purple-50 px-2 py-0.5 rounded-full whitespace-nowrap">
                         {getName(g.sportId)}
                       </span>
                     </td>
-
-                    {/* Category — populated */}
                     <td className="px-4 py-3">
                       <span className="text-xs text-blue-700 bg-blue-50 px-2 py-0.5 rounded-full whitespace-nowrap">
                         {getName(g.categoryId)}
                       </span>
                     </td>
-
-                    {/* Coach */}
+                    <td className="px-4 py-3">
+                      <span className="text-xs text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full whitespace-nowrap truncate max-w-[90px] inline-block">
+                        {getName(g.academyId)}
+                      </span>
+                    </td>
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-1">
                         <User className="h-3 w-3 text-neutral-400" />
                         <span className="text-xs text-neutral-600">{g.coach || '—'}</span>
                       </div>
                     </td>
-
-                    {/* Timing */}
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-1">
                         <Clock className="h-3 w-3 text-neutral-400" />
@@ -665,8 +742,6 @@ export default function SportGrounds() {
                       </div>
                       {g.sportDurationInHours && <p className="text-[10px] text-neutral-300 mt-0.5 pl-4">{g.sportDurationInHours}h</p>}
                     </td>
-
-                    {/* Players */}
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-1">
                         <Users className="h-3 w-3 text-neutral-400" />
@@ -674,15 +749,11 @@ export default function SportGrounds() {
                       </div>
                       {g.isFull && <span className="text-[9px] bg-red-100 text-red-500 px-1.5 py-0.5 rounded-full mt-0.5 inline-block">Full</span>}
                     </td>
-
-                    {/* Date */}
                     <td className="px-4 py-3">
                       <span className="text-[10px] text-neutral-500 whitespace-nowrap">
                         {g.sportDateDisplay || (g.sportDate ? new Date(g.sportDate).toLocaleDateString('en-IN') : '—')}
                       </span>
                     </td>
-
-                    {/* Status toggle */}
                     <td className="px-4 py-3">
                       <button onClick={() => handleToggle(g)} disabled={togglingId===id}
                         className={`text-[10px] px-2 py-0.5 rounded-full font-medium cursor-pointer disabled:opacity-60 transition-all
@@ -690,8 +761,6 @@ export default function SportGrounds() {
                         {togglingId===id ? '...' : g.isActive ? 'Active' : 'Inactive'}
                       </button>
                     </td>
-
-                    {/* Actions */}
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-1.5">
                         <button onClick={() => setViewGround(g)} className="p-1.5 rounded-lg bg-blue-50 border border-blue-200 text-blue-500 hover:bg-blue-100"><Eye className="h-3.5 w-3.5" /></button>
@@ -740,21 +809,19 @@ export default function SportGrounds() {
                       {togglingId===id ? '...' : g.isActive ? 'Active' : 'Inactive'}
                     </button>
                   </div>
-
                   <div className="flex flex-wrap gap-1.5 mb-3">
                     <span className="text-[10px] bg-purple-50 text-purple-700 px-2 py-0.5 rounded-full">{getName(g.sportId)}</span>
                     <span className="text-[10px] bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full">{getName(g.venueId)}</span>
                     <span className="text-[10px] bg-blue-50 text-blue-600 px-2 py-0.5 rounded-full">{getName(g.categoryId)}</span>
+                    <span className="text-[10px] bg-emerald-50 text-emerald-600 px-2 py-0.5 rounded-full">{getName(g.academyId)}</span>
                     {g.isFull && <span className="text-[10px] bg-red-50 text-red-500 px-2 py-0.5 rounded-full">Full</span>}
                   </div>
-
                   <div className="grid grid-cols-2 gap-1.5 text-[10px] text-neutral-500 mb-3">
                     <div className="flex items-center gap-1"><Clock className="h-3 w-3" />{g.sportTimingDisplay||g.openingTime||'—'}</div>
                     <div className="flex items-center gap-1"><Users className="h-3 w-3" />{g.minPlayers??'—'}–{g.maxPlayers??'—'} players</div>
                     <div className="flex items-center gap-1"><User className="h-3 w-3" />{g.coach||'—'}</div>
                     <div className="flex items-center gap-1"><Calendar className="h-3 w-3" />{g.sportDurationInHours ? `${g.sportDurationInHours}h` : '—'}</div>
                   </div>
-
                   {g.features?.length > 0 && (
                     <div className="flex flex-wrap gap-1 mb-3">
                       {g.features.map((f,i) => (
@@ -762,7 +829,6 @@ export default function SportGrounds() {
                       ))}
                     </div>
                   )}
-
                   <div className="flex gap-2 pt-3 border-t border-neutral-100">
                     <button onClick={() => setViewGround(g)}
                       className="flex-1 flex items-center justify-center gap-1 text-xs text-blue-500 border border-blue-200 bg-blue-50 rounded-lg py-1.5 hover:bg-blue-100">
