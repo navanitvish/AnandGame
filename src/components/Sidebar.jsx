@@ -59,10 +59,12 @@ const adminLinks = [
 // ─────────────────────────────────────────────
 const academyLinks = [
   { path: '/dashboard', label: 'Dashboard', sub: 'Academy overview', icon: LayoutDashboard },
-  { path: '/academy/courses', label: 'Courses', sub: 'Manage courses', icon: BookOpen },
-  { path: '/slots', label: 'Slots', sub: 'Manage slots', icon: Users2 },
+  { path: '/playground', label: 'Spordround', sub: 'City-wise grounds', icon: Dumbbell },
+   { path: '/grounds', label: 'grounds', sub: 'Manage Grounds', icon: Clock },
+  { path: '/courts', label: 'Courts', sub: 'Manage Courts', icon: Brain },
+ 
   { path: '/booking', label: 'Bookings', sub: 'Manage Bookings', icon: Clock },
-  { path: '/academy/performance', label: 'Performance', sub: 'Track results', icon: BarChart2 },
+  // { path: '/academy/performance', label: 'Performance', sub: 'Track results', icon: BarChart2 },
 ]
 
 // ─────────────────────────────────────────────
