@@ -2,20 +2,19 @@ import { useState, useEffect } from 'react'
 import {
   Grid, Plus, Trash2, Search, LayoutGrid, List,
   Edit, Eye, X, AlertCircle, RefreshCw,
-  Shield, Layers, DollarSign, CheckCircle,
-  ToggleLeft, ToggleRight, MapPin
+  Shield, CheckCircle, ToggleLeft, ToggleRight, MapPin,
+  Clock, Building2, Trophy, ChevronDown
 } from 'lucide-react'
 import api from '../api/api'
 
 // ── API calls ─────────────────────────────────────────────────────────────────
-const getCourts    = ()         => api.get('/courts/getAll')
-const createCourt  = (body)     => api.post('/courts/create', body)
-const updateCourt  = (id, body) => api.put(`/courts/update/${id}`, body)
-const deleteCourt  = (id)       => api.delete(`/courts/delete/${id}`)
-const toggleCourt  = (id)       => api.patch(`/courts/${id}/toggle`)
-
-const fetchGrounds = () => api.get('/grounds/getAll')
-const fetchSports  = () => api.get('/sports/getAll')
+const getCourts   = ()         => api.get('/courts/getAll')
+const createCourt = (body)     => api.post('/courts/create', body)
+const updateCourt = (id, body) => api.put(`/courts/update/${id}`, body)
+const deleteCourt = (id)       => api.delete(`/courts/delete/${id}`)
+const toggleCourt = (id)       => api.patch(`/courts/${id}/toggle`)
+const fetchGrounds = ()        => api.get('/grounds/getAll')
+const fetchSports  = ()        => api.get('/sports/getAll')
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 const toList  = (res) => {
@@ -41,12 +40,18 @@ const emptyForm = {
   pricePerHour: '', status: 'available', isActive: true,
 }
 
-// ── Status badge color ────────────────────────────────────────────────────────
 const statusColor = (s) => {
   if (s === 'available')   return 'bg-green-50 text-green-700 border-green-200'
   if (s === 'unavailable') return 'bg-red-50 text-red-600 border-red-200'
   if (s === 'maintenance') return 'bg-amber-50 text-amber-700 border-amber-200'
   return 'bg-gray-100 text-gray-500 border-gray-200'
+}
+
+const groundStatusColor = (s) => {
+  if (s === 'available')   return 'bg-emerald-50 text-emerald-700'
+  if (s === 'unavailable') return 'bg-red-50 text-red-600'
+  if (s === 'maintenance') return 'bg-amber-50 text-amber-700'
+  return 'bg-gray-100 text-gray-500'
 }
 
 // ── Toast ─────────────────────────────────────────────────────────────────────
@@ -107,21 +112,13 @@ function ConfirmModal({ show, name, loading, onConfirm, onCancel }) {
 // ── View Modal ────────────────────────────────────────────────────────────────
 function ViewModal({ court, onClose, onEdit }) {
   if (!court) return null
-  const rows = [
-    { label: 'Court Name',   value: court.name },
-    { label: 'Ground',       value: getName(court.groundId) },
-    { label: 'Sport',        value: getName(court.sportId) },
-    { label: 'Price / Hour', value: court.pricePerHour ? `₹${court.pricePerHour}` : '—' },
-    { label: 'Status',       value: court.status || '—' },
-    { label: 'Is Active',    value: court.isActive ? 'Yes' : 'No' },
-    { label: 'Created',      value: court.createdAt
-        ? new Date(court.createdAt).toLocaleDateString('en-IN', { day:'2-digit', month:'short', year:'numeric' })
-        : '—' },
-  ]
+  const g = court.groundId   // populated object
+  const s = court.sportId    // populated object
+  const a = g?.academyId     // nested academy
 
   return (
     <div className="fixed inset-0 bg-black/40 z-40 flex items-center justify-center backdrop-blur-sm p-4">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md max-h-[90vh] overflow-y-auto">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
 
         {/* Header */}
         <div className="sticky top-0 bg-white flex items-center justify-between px-6 py-4 border-b border-gray-100 z-10">
@@ -146,35 +143,117 @@ function ViewModal({ court, onClose, onEdit }) {
           </div>
         </div>
 
-        {/* Status strip */}
-        <div className="px-6 pt-4 pb-2 flex items-center gap-2">
-          <span className={`text-xs px-3 py-1 rounded-full font-medium border capitalize ${statusColor(court.status)}`}>
-            {court.status || 'unknown'}
-          </span>
-          <span className={`text-xs px-3 py-1 rounded-full font-medium border
-            ${court.isActive ? 'bg-purple-50 text-purple-700 border-purple-200' : 'bg-neutral-100 text-neutral-500 border-neutral-200'}`}>
-            {court.isActive ? 'Active' : 'Inactive'}
-          </span>
-        </div>
+        <div className="p-5 space-y-4">
+          {/* Status strip */}
+          <div className="flex items-center gap-2">
+            <span className={`text-xs px-3 py-1 rounded-full font-medium border capitalize ${statusColor(court.status)}`}>
+              {court.status || 'unknown'}
+            </span>
+            <span className={`text-xs px-3 py-1 rounded-full font-medium border
+              ${court.isActive ? 'bg-purple-50 text-purple-700 border-purple-200' : 'bg-neutral-100 text-neutral-500 border-neutral-200'}`}>
+              {court.isActive ? 'Active' : 'Inactive'}
+            </span>
+          </div>
 
-        {/* Info grid */}
-        <div className="p-5 grid grid-cols-2 gap-2">
-          {rows.map(({ label, value }) => (
-            <div key={label} className="bg-gray-50 rounded-xl p-3 border border-gray-100">
-              <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-1">{label}</p>
-              <p className="text-sm font-medium text-gray-800 truncate">{value}</p>
-            </div>
-          ))}
-        </div>
+          {/* Court basic */}
+          <div className="grid grid-cols-2 gap-2">
+            {[
+              { label: 'Court Name',   value: court.name },
+              { label: 'Price / Hour', value: court.pricePerHour ? `₹${court.pricePerHour}` : '—' },
+              { label: 'Status',       value: court.status || '—' },
+              { label: 'Is Active',    value: court.isActive ? 'Yes' : 'No' },
+              { label: 'Created',      value: court.createdAt ? new Date(court.createdAt).toLocaleDateString('en-IN', { day:'2-digit', month:'short', year:'numeric' }) : '—' },
+            ].map(({ label, value }) => (
+              <div key={label} className="bg-gray-50 rounded-xl p-3 border border-gray-100">
+                <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-1">{label}</p>
+                <p className="text-sm font-medium text-gray-800 truncate">{value}</p>
+              </div>
+            ))}
+          </div>
 
-        {court.description && (
-          <div className="px-5 pb-5">
+          {court.description && (
             <div className="bg-gray-50 rounded-xl p-3 border border-gray-100">
               <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-1">Description</p>
               <p className="text-sm text-gray-700">{court.description}</p>
             </div>
-          </div>
-        )}
+          )}
+
+          {/* Ground info */}
+          {g && (
+            <div className="border border-purple-100 rounded-xl overflow-hidden">
+              <div className="bg-purple-50 px-4 py-2.5 flex items-center gap-2">
+                <MapPin className="h-3.5 w-3.5 text-purple-500" />
+                <p className="text-xs font-bold text-purple-700 uppercase tracking-wide">Ground Info</p>
+              </div>
+              <div className="p-3 grid grid-cols-2 gap-2">
+                {[
+                  { label: 'Ground Name',  value: g.name },
+                  { label: 'No. of Courts',value: g.noOfCourts },
+                  { label: 'Opening Time', value: g.openingTime },
+                  { label: 'Closing Time', value: g.closingTime },
+                  { label: 'Ground Status',value: g.status },
+                ].map(({ label, value }) => value != null ? (
+                  <div key={label} className="bg-white rounded-lg p-2.5 border border-purple-50">
+                    <p className="text-[10px] text-gray-400 mb-0.5">{label}</p>
+                    <p className="text-xs font-semibold text-gray-800">{value}</p>
+                  </div>
+                ) : null)}
+              </div>
+              {/* Sports in ground */}
+              {Array.isArray(g.sports) && g.sports.length > 0 && (
+                <div className="px-3 pb-3">
+                  <p className="text-[10px] text-gray-400 mb-1.5">Sports offered</p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {g.sports.map(sp => (
+                      <div key={sp._id} className="flex items-center gap-1.5 bg-blue-50 border border-blue-100 rounded-lg px-2 py-1">
+                        {sp.image && <img src={sp.image} alt={sp.name} className="w-4 h-4 rounded object-cover" />}
+                        <span className="text-[10px] font-medium text-blue-700 capitalize">{sp.name}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Academy info */}
+          {a && (
+            <div className="border border-emerald-100 rounded-xl overflow-hidden">
+              <div className="bg-emerald-50 px-4 py-2.5 flex items-center gap-2">
+                <Building2 className="h-3.5 w-3.5 text-emerald-600" />
+                <p className="text-xs font-bold text-emerald-700 uppercase tracking-wide">Academy</p>
+              </div>
+              <div className="p-3 flex items-center gap-3">
+                {a.image && (
+                  <img src={a.image} alt={a.name} className="w-12 h-12 rounded-xl object-cover border border-emerald-100 shrink-0" />
+                )}
+                <div>
+                  <p className="text-sm font-bold text-gray-900">{a.name}</p>
+                  {a.description && <p className="text-xs text-gray-500 mt-0.5">{a.description}</p>}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Sport info */}
+          {s && (
+            <div className="border border-blue-100 rounded-xl overflow-hidden">
+              <div className="bg-blue-50 px-4 py-2.5 flex items-center gap-2">
+                <Trophy className="h-3.5 w-3.5 text-blue-500" />
+                <p className="text-xs font-bold text-blue-700 uppercase tracking-wide">Sport (This Court)</p>
+              </div>
+              <div className="p-3 flex items-center gap-3">
+                {s.image && (
+                  <img src={s.image} alt={s.name} className="w-10 h-10 rounded-xl object-cover border border-blue-100 shrink-0" />
+                )}
+                <div>
+                  <p className="text-sm font-bold text-gray-900 capitalize">{s.name}</p>
+                  {s.description && <p className="text-xs text-gray-500 mt-0.5">{s.description}</p>}
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   )
@@ -217,17 +296,11 @@ function CourtFormModal({ show, editCourt, grounds, sports, onClose, onSaved, to
   const handleSubmit = async () => {
     const e = validate()
     if (Object.keys(e).length) { setErrors(e); return }
-
     const body = {
-      groundId:     form.groundId,
-      sportId:      form.sportId,
-      name:         form.name.trim(),
-      description:  form.description.trim(),
-      pricePerHour: Number(form.pricePerHour),
-      status:       form.status,
-      isActive:     form.isActive,
+      groundId: form.groundId, sportId: form.sportId,
+      name: form.name.trim(), description: form.description.trim(),
+      pricePerHour: Number(form.pricePerHour), status: form.status, isActive: form.isActive,
     }
-
     setLoading(true)
     try {
       if (editCourt) {
@@ -240,175 +313,109 @@ function CourtFormModal({ show, editCourt, grounds, sports, onClose, onSaved, to
       onSaved(); onClose()
     } catch (err) {
       toast(err?.response?.data?.message || err.message || 'Something went wrong', 'error')
-    } finally {
-      setLoading(false)
-    }
+    } finally { setLoading(false) }
   }
 
   if (!show) return null
-
-  const err = (k) => errors[k]
-    ? <p className="text-xs text-red-500 mt-1">{errors[k]}</p>
-    : null
-
-  const cls = (k) =>
-    `${inputCls} ${errors[k] ? 'border-red-300 focus:border-red-400 focus:ring-red-400/20' : ''}`
+  const err = (k) => errors[k] ? <p className="text-xs text-red-500 mt-1">{errors[k]}</p> : null
+  const cls = (k) => `${inputCls} ${errors[k] ? 'border-red-300 focus:border-red-400 focus:ring-red-400/20' : ''}`
 
   return (
     <div className="fixed inset-0 bg-black/40 z-40 flex items-center justify-center backdrop-blur-sm p-4">
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[92vh] overflow-y-auto">
-
-        {/* Header */}
         <div className="sticky top-0 bg-white flex items-center justify-between px-6 py-4 border-b border-gray-100 z-10">
           <div className="flex items-center gap-3">
             <div className={`w-8 h-8 rounded-xl flex items-center justify-center
               ${editCourt ? 'bg-amber-50 border border-amber-200' : 'bg-purple-50 border border-purple-200'}`}>
-              {editCourt
-                ? <Edit className="h-4 w-4 text-amber-500" />
-                : <Plus className="h-4 w-4 text-purple-600" />}
+              {editCourt ? <Edit className="h-4 w-4 text-amber-500" /> : <Plus className="h-4 w-4 text-purple-600" />}
             </div>
             <div>
-              <h2 className="text-sm font-bold text-gray-900">
-                {editCourt ? 'Edit Court' : 'Add New Court'}
-              </h2>
-              <p className="text-xs text-gray-400">* required fields · sent as JSON</p>
+              <h2 className="text-sm font-bold text-gray-900">{editCourt ? 'Edit Court' : 'Add New Court'}</h2>
+              <p className="text-xs text-gray-400">* required fields</p>
             </div>
           </div>
-          <button onClick={onClose}
-            className="w-8 h-8 rounded-full bg-gray-100 hover:bg-gray-200 flex items-center justify-center text-gray-500">
+          <button onClick={onClose} className="w-8 h-8 rounded-full bg-gray-100 hover:bg-gray-200 flex items-center justify-center text-gray-500">
             <X className="h-4 w-4" />
           </button>
         </div>
 
         <div className="p-6 space-y-6">
-
-          {/* ── Linked References ── */}
           <div>
             <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-3">Linked References *</p>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              {/* Ground */}
               <div>
                 <label className={labelCls}>Ground *</label>
-                <select value={form.groundId}
-                  onChange={e => { set('groundId', e.target.value); setErrors(er => ({ ...er, groundId: '' })) }}
-                  className={cls('groundId')}>
+                <select value={form.groundId} onChange={e => { set('groundId', e.target.value); setErrors(er => ({ ...er, groundId: '' })) }} className={cls('groundId')}>
                   <option value="">Select a ground…</option>
-                  {grounds.map(g => (
-                    <option key={g._id || g.id} value={g._id || g.id}>{g.name}</option>
-                  ))}
+                  {grounds.map(g => <option key={g._id || g.id} value={g._id || g.id}>{g.name}</option>)}
                 </select>
                 {err('groundId')}
               </div>
-
-              {/* Sport */}
               <div>
                 <label className={labelCls}>Sport *</label>
-                <select value={form.sportId}
-                  onChange={e => { set('sportId', e.target.value); setErrors(er => ({ ...er, sportId: '' })) }}
-                  className={cls('sportId')}>
+                <select value={form.sportId} onChange={e => { set('sportId', e.target.value); setErrors(er => ({ ...er, sportId: '' })) }} className={cls('sportId')}>
                   <option value="">Select a sport…</option>
-                  {sports.map(s => (
-                    <option key={s._id || s.id} value={s._id || s.id}>{s.name}</option>
-                  ))}
+                  {sports.map(s => <option key={s._id || s.id} value={s._id || s.id}>{s.name}</option>)}
                 </select>
                 {err('sportId')}
               </div>
             </div>
           </div>
 
-          {/* ── Basic Info ── */}
           <div>
             <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-3">Basic Info</p>
             <div className="space-y-3">
               <div>
                 <label className={labelCls}>Court Name *</label>
-                <input type="text" placeholder="e.g. Court 1"
-                  value={form.name}
+                <input type="text" placeholder="e.g. Court 1" value={form.name}
                   onChange={e => { set('name', e.target.value); setErrors(er => ({ ...er, name: '' })) }}
                   className={cls('name')} />
                 {err('name')}
               </div>
               <div>
                 <label className={labelCls}>Description</label>
-                <textarea rows={3} placeholder="Short description of the court…"
-                  value={form.description}
-                  onChange={e => set('description', e.target.value)}
-                  className={`${inputCls} resize-none`} />
+                <textarea rows={3} placeholder="Short description of the court…" value={form.description}
+                  onChange={e => set('description', e.target.value)} className={`${inputCls} resize-none`} />
               </div>
             </div>
           </div>
 
-          {/* ── Pricing & Status ── */}
           <div>
             <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-3">Pricing & Status</p>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              {/* Price */}
               <div>
                 <label className={labelCls}>Price Per Hour *</label>
                 <div className="relative">
                   <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-gray-400 font-medium select-none">₹</span>
-                  <input type="number" min="0" placeholder="500"
-                    value={form.pricePerHour}
+                  <input type="number" min="0" placeholder="500" value={form.pricePerHour}
                     onChange={e => { set('pricePerHour', e.target.value); setErrors(er => ({ ...er, pricePerHour: '' })) }}
                     className={`${cls('pricePerHour')} pl-7`} />
                 </div>
                 {err('pricePerHour')}
               </div>
-
-              {/* Status */}
               <div>
                 <label className={labelCls}>Status</label>
                 <select value={form.status} onChange={e => set('status', e.target.value)} className={inputCls}>
-                  {STATUS_OPTS.map(s => (
-                    <option key={s} value={s}>{s.charAt(0).toUpperCase() + s.slice(1)}</option>
-                  ))}
+                  {STATUS_OPTS.map(s => <option key={s} value={s}>{s.charAt(0).toUpperCase() + s.slice(1)}</option>)}
                 </select>
               </div>
             </div>
           </div>
 
-          {/* ── Is Active toggle ── */}
           <div>
             <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-3">Visibility</p>
-            <button
-              onClick={() => set('isActive', !form.isActive)}
+            <button onClick={() => set('isActive', !form.isActive)}
               className={`flex items-center gap-3 w-full px-4 py-3 rounded-xl border transition-all
-                ${form.isActive
-                  ? 'bg-purple-50 border-purple-200 text-purple-700'
-                  : 'bg-gray-50 border-gray-200 text-gray-500'}`}>
-              {form.isActive
-                ? <ToggleRight className="h-5 w-5 shrink-0" />
-                : <ToggleLeft  className="h-5 w-5 shrink-0" />}
+                ${form.isActive ? 'bg-purple-50 border-purple-200 text-purple-700' : 'bg-gray-50 border-gray-200 text-gray-500'}`}>
+              {form.isActive ? <ToggleRight className="h-5 w-5 shrink-0" /> : <ToggleLeft className="h-5 w-5 shrink-0" />}
               <div className="text-left">
-                <p className="text-sm font-semibold">
-                  {form.isActive ? 'Active' : 'Inactive'}
-                </p>
-                <p className="text-xs opacity-60">
-                  {form.isActive ? 'Court is visible and bookable' : 'Court is hidden from users'}
-                </p>
+                <p className="text-sm font-semibold">{form.isActive ? 'Active' : 'Inactive'}</p>
+                <p className="text-xs opacity-60">{form.isActive ? 'Court is visible and bookable' : 'Court is hidden from users'}</p>
               </div>
             </button>
           </div>
-
-          {/* JSON preview */}
-          <div>
-            <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-2">Request Preview (JSON)</p>
-            <pre className="bg-neutral-950 text-green-400 text-[10px] rounded-xl p-4 overflow-x-auto font-mono leading-relaxed">
-{JSON.stringify({
-  groundId:     form.groundId     || '<required>',
-  sportId:      form.sportId      || '<required>',
-  name:         form.name         || '<required>',
-  description:  form.description,
-  pricePerHour: form.pricePerHour ? Number(form.pricePerHour) : '<required>',
-  status:       form.status,
-  isActive:     form.isActive,
-}, null, 2)}
-            </pre>
-          </div>
-
         </div>
 
-        {/* Footer */}
         <div className="sticky bottom-0 bg-white px-6 py-4 border-t border-gray-100 flex gap-3">
           <button onClick={onClose} disabled={loading}
             className="flex-1 py-2.5 text-sm rounded-xl border border-gray-200 text-gray-600 hover:bg-gray-50 disabled:opacity-50">
@@ -424,6 +431,252 @@ function CourtFormModal({ show, editCourt, grounds, sports, onClose, onSaved, to
         </div>
       </div>
     </div>
+  )
+}
+
+// ── Expandable Row ────────────────────────────────────────────────────────────
+// Shows nested ground/academy/sports details inline when expanded
+function CourtRow({ court, idx, onView, onEdit, onDelete, onToggle, togglingId }) {
+  const [expanded, setExpanded] = useState(false)
+  const id = court._id || court.id
+  const g  = court.groundId   // populated
+  const s  = court.sportId    // populated
+  const a  = g?.academyId     // nested academy
+
+  return (
+    <>
+      {/* ── Main row ── */}
+      <tr className="border-b border-neutral-100 hover:bg-neutral-50 transition-colors">
+
+        {/* # */}
+        <td className="px-4 py-3 text-neutral-400 text-xs">{idx + 1}</td>
+
+        {/* Expand toggle */}
+        <td className="px-2 py-3">
+          <button
+            onClick={() => setExpanded(v => !v)}
+            className={`w-6 h-6 rounded-md flex items-center justify-center transition-all
+              ${expanded ? 'bg-purple-100 text-purple-600' : 'bg-neutral-100 text-neutral-400 hover:bg-purple-50 hover:text-purple-500'}`}
+          >
+            <ChevronDown className={`h-3.5 w-3.5 transition-transform ${expanded ? 'rotate-180' : ''}`} />
+          </button>
+        </td>
+
+        {/* Court Name */}
+        <td className="px-4 py-3">
+          <div className="flex items-center gap-2">
+            <div className="w-7 h-7 bg-purple-100 rounded-lg flex items-center justify-center shrink-0">
+              <Grid className="h-3.5 w-3.5 text-purple-500" />
+            </div>
+            <div>
+              <p className="text-xs font-semibold text-black">{court.name}</p>
+              <p className="text-[10px] text-neutral-400 mt-0.5 max-w-[160px] truncate">{court.description || '—'}</p>
+            </div>
+          </div>
+        </td>
+
+        {/* Ground */}
+        <td className="px-4 py-3">
+          <div>
+            <span className="text-xs text-purple-700 bg-purple-50 px-2 py-0.5 rounded-full whitespace-nowrap font-medium">
+              {getName(g)}
+            </span>
+            {g?.status && (
+              <div className={`text-[9px] px-1.5 py-0.5 rounded-full font-medium capitalize mt-1 inline-block ${groundStatusColor(g.status)}`}>
+                {g.status}
+              </div>
+            )}
+          </div>
+        </td>
+
+        {/* Academy */}
+        <td className="px-4 py-3">
+          <div className="flex items-center gap-1.5">
+            {a?.image && (
+              <img src={a.image} alt={a?.name} className="w-5 h-5 rounded object-cover border border-neutral-200 shrink-0" />
+            )}
+            <span className="text-xs text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full whitespace-nowrap font-medium max-w-[130px] truncate">
+              {a?.name || '—'}
+            </span>
+          </div>
+        </td>
+
+        {/* Sport (this court) */}
+        <td className="px-4 py-3">
+          <div className="flex items-center gap-1.5">
+            {s?.image && (
+              <img src={s.image} alt={s?.name} className="w-5 h-5 rounded object-cover border border-neutral-200 shrink-0" />
+            )}
+            <span className="text-xs text-blue-700 bg-blue-50 px-2 py-0.5 rounded-full whitespace-nowrap font-medium capitalize">
+              {getName(s)}
+            </span>
+          </div>
+        </td>
+
+        {/* Ground Hours */}
+        <td className="px-4 py-3 whitespace-nowrap">
+          {g?.openingTime && g?.closingTime ? (
+            <div className="flex items-center gap-1 text-[10px] text-neutral-500">
+              <Clock className="h-3 w-3 text-neutral-300 shrink-0" />
+              <span>{g.openingTime} – {g.closingTime}</span>
+            </div>
+          ) : <span className="text-neutral-300 text-xs">—</span>}
+        </td>
+
+        {/* Courts in ground */}
+        <td className="px-4 py-3 text-center">
+          {g?.noOfCourts != null ? (
+            <span className="text-xs font-semibold text-neutral-700 bg-neutral-100 px-2 py-0.5 rounded-full">
+              {g.noOfCourts}
+            </span>
+          ) : <span className="text-neutral-300 text-xs">—</span>}
+        </td>
+
+        {/* Sports in Ground (chips) */}
+        <td className="px-4 py-3 max-w-[200px]">
+          <div className="flex flex-wrap gap-1">
+            {Array.isArray(g?.sports) && g.sports.length > 0
+              ? g.sports.map(sp => (
+                  <div key={sp._id} className="flex items-center gap-1 bg-neutral-100 rounded-md px-1.5 py-0.5">
+                    {sp.image && <img src={sp.image} alt={sp.name} className="w-3 h-3 rounded object-cover" />}
+                    <span className="text-[9px] text-neutral-600 capitalize font-medium">{sp.name}</span>
+                  </div>
+                ))
+              : <span className="text-neutral-300 text-xs">—</span>}
+          </div>
+        </td>
+
+        {/* Price */}
+        <td className="px-4 py-3">
+          <span className="text-xs font-bold text-neutral-800">
+            {court.pricePerHour ? `₹${court.pricePerHour}` : '—'}
+          </span>
+          <p className="text-[9px] text-neutral-400">/ hr</p>
+        </td>
+
+        {/* Court Status */}
+        <td className="px-4 py-3">
+          <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium border capitalize ${statusColor(court.status)}`}>
+            {court.status || '—'}
+          </span>
+        </td>
+
+        {/* Active toggle */}
+        <td className="px-4 py-3">
+          <button onClick={() => onToggle(court)} disabled={togglingId === id}
+            className={`text-[10px] px-2 py-0.5 rounded-full font-medium cursor-pointer disabled:opacity-60 transition-all border
+              ${court.isActive
+                ? 'bg-purple-100 text-purple-700 border-purple-200 hover:bg-purple-200'
+                : 'bg-neutral-100 text-neutral-500 border-neutral-200 hover:bg-neutral-200'}`}>
+            {togglingId === id ? '...' : court.isActive ? 'Active' : 'Inactive'}
+          </button>
+        </td>
+
+        {/* Actions */}
+        <td className="px-4 py-3">
+          <div className="flex items-center gap-1.5">
+            <button onClick={() => onView(court)}
+              className="p-1.5 rounded-lg bg-blue-50 border border-blue-200 text-blue-500 hover:bg-blue-100">
+              <Eye className="h-3.5 w-3.5" />
+            </button>
+            <button onClick={() => onEdit(court)}
+              className="p-1.5 rounded-lg bg-amber-50 border border-amber-200 text-amber-500 hover:bg-amber-100">
+              <Edit className="h-3.5 w-3.5" />
+            </button>
+            <button onClick={() => onDelete({ id, name: court.name })}
+              className="p-1.5 rounded-lg bg-red-50 border border-red-200 text-red-500 hover:bg-red-100">
+              <Trash2 className="h-3.5 w-3.5" />
+            </button>
+          </div>
+        </td>
+      </tr>
+
+      {/* ── Expanded detail row ── */}
+      {expanded && (
+        <tr className="border-b border-neutral-100 bg-gradient-to-r from-purple-50/60 to-blue-50/30">
+          <td colSpan={14} className="px-6 py-4">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+
+              {/* Ground details */}
+              {g && (
+                <div className="bg-white rounded-xl border border-purple-100 p-3">
+                  <div className="flex items-center gap-1.5 mb-2">
+                    <MapPin className="h-3.5 w-3.5 text-purple-500" />
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-purple-600">Ground</p>
+                  </div>
+                  <p className="text-sm font-bold text-gray-900 mb-1">{g.name}</p>
+                  <div className="space-y-1">
+                    {g.openingTime && g.closingTime && (
+                      <div className="flex items-center gap-1.5">
+                        <Clock className="h-3 w-3 text-neutral-300" />
+                        <span className="text-[11px] text-neutral-500">{g.openingTime} – {g.closingTime}</span>
+                      </div>
+                    )}
+                    <div className="flex items-center gap-1.5">
+                      <Grid className="h-3 w-3 text-neutral-300" />
+                      <span className="text-[11px] text-neutral-500">{g.noOfCourts} court{g.noOfCourts !== 1 ? 's' : ''} in this ground</span>
+                    </div>
+                    <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium capitalize inline-block mt-1 ${groundStatusColor(g.status)}`}>
+                      {g.status}
+                    </span>
+                  </div>
+                </div>
+              )}
+
+              {/* Academy details */}
+              {a && (
+                <div className="bg-white rounded-xl border border-emerald-100 p-3">
+                  <div className="flex items-center gap-1.5 mb-2">
+                    <Building2 className="h-3.5 w-3.5 text-emerald-600" />
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-emerald-600">Academy</p>
+                  </div>
+                  <div className="flex items-center gap-2 mb-2">
+                    {a.image && <img src={a.image} alt={a.name} className="w-10 h-10 rounded-lg object-cover border border-emerald-100 shrink-0" />}
+                    <div>
+                      <p className="text-sm font-bold text-gray-900">{a.name}</p>
+                      {a.description && <p className="text-[11px] text-neutral-500 mt-0.5 line-clamp-2">{a.description}</p>}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Sport + all ground sports */}
+              <div className="bg-white rounded-xl border border-blue-100 p-3">
+                <div className="flex items-center gap-1.5 mb-2">
+                  <Trophy className="h-3.5 w-3.5 text-blue-500" />
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-blue-600">Sports</p>
+                </div>
+                {/* This court's sport */}
+                {s && (
+                  <div className="flex items-center gap-2 mb-2 bg-blue-50 rounded-lg px-2 py-1.5">
+                    {s.image && <img src={s.image} alt={s.name} className="w-6 h-6 rounded object-cover border border-blue-100 shrink-0" />}
+                    <div>
+                      <p className="text-[10px] text-blue-400">This court's sport</p>
+                      <p className="text-xs font-bold text-blue-800 capitalize">{s.name}</p>
+                    </div>
+                  </div>
+                )}
+                {/* All sports in ground */}
+                {Array.isArray(g?.sports) && g.sports.length > 0 && (
+                  <>
+                    <p className="text-[10px] text-neutral-400 mb-1.5">All sports in ground ({g.sports.length})</p>
+                    <div className="flex flex-wrap gap-1">
+                      {g.sports.map(sp => (
+                        <div key={sp._id} className="flex items-center gap-1 bg-neutral-100 border border-neutral-200 rounded-md px-1.5 py-0.5">
+                          {sp.image && <img src={sp.image} alt={sp.name} className="w-3.5 h-3.5 rounded object-cover" />}
+                          <span className="text-[10px] text-neutral-600 capitalize font-medium">{sp.name}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </>
+                )}
+              </div>
+
+            </div>
+          </td>
+        </tr>
+      )}
+    </>
   )
 }
 
@@ -455,9 +708,7 @@ export default function Courts() {
       setCourts(toList(res))
     } catch (err) {
       toast(err.message || 'Failed to load courts', 'error')
-    } finally {
-      setLoading(false)
-    }
+    } finally { setLoading(false) }
   }
 
   const loadDropdowns = async () => {
@@ -495,22 +746,35 @@ export default function Courts() {
 
   const filtered = courts.filter(c => {
     const q = search.toLowerCase()
+    const g = c.groundId
+    const s = c.sportId
+    const a = g?.academyId
     return (
-      c.name?.toLowerCase().includes(q) ||
-      c.status?.toLowerCase().includes(q) ||
-      getName(c.groundId).toLowerCase().includes(q) ||
-      getName(c.sportId).toLowerCase().includes(q)
+      c.name?.toLowerCase().includes(q)         ||
+      c.status?.toLowerCase().includes(q)       ||
+      c.description?.toLowerCase().includes(q)  ||
+      getName(g).toLowerCase().includes(q)      ||
+      getName(s).toLowerCase().includes(q)      ||
+      a?.name?.toLowerCase().includes(q)        ||
+      g?.status?.toLowerCase().includes(q)      ||
+      (Array.isArray(g?.sports) && g.sports.some(sp => sp.name?.toLowerCase().includes(q)))
     )
   })
 
   const activeCount = courts.filter(c => c.isActive).length
   const availCount  = courts.filter(c => c.status === 'available').length
+  const uniqueGrounds = new Set(courts.map(c => getId(c.groundId))).size
 
   const stats = [
-    { label:'Total Courts', value: courts.length,  sub:`${activeCount} active`,  icon: Grid,        color:'bg-purple-600' },
-    { label:'Active',       value: activeCount,     sub:'visible to users',       icon: Shield,      color:'bg-green-600'  },
-    { label:'Available',    value: availCount,      sub:'ready to book',          icon: CheckCircle, color:'bg-blue-600'   },
-    { label:'Grounds',      value: new Set(courts.map(c => getId(c.groundId))).size, sub:'linked',   icon: MapPin,         color:'bg-black'      },
+    { label: 'Total Courts', value: courts.length,  sub: `${activeCount} active`,  icon: Grid,        color: 'bg-purple-600' },
+    { label: 'Active',       value: activeCount,     sub: 'visible to users',       icon: Shield,      color: 'bg-green-600'  },
+    { label: 'Available',    value: availCount,      sub: 'ready to book',          icon: CheckCircle, color: 'bg-blue-600'   },
+    { label: 'Grounds',      value: uniqueGrounds,   sub: 'linked grounds',         icon: MapPin,      color: 'bg-black'      },
+  ]
+
+  const TABLE_HEADERS = [
+    '#', '', 'Court', 'Ground', 'Academy', 'Sport', 'Ground Hours',
+    'No. of Courts', 'Sports in Ground', 'Price/hr', 'Court Status', 'Active', 'Actions'
   ]
 
   return (
@@ -518,21 +782,17 @@ export default function Courts() {
       <ToastContainer toasts={toasts} />
 
       <ConfirmModal
-        show={!!deleteTarget} name={deleteTarget?.name}
-        loading={deleting}
-        onConfirm={handleDeleteConfirm}
-        onCancel={() => setDeleteTarget(null)}
+        show={!!deleteTarget} name={deleteTarget?.name} loading={deleting}
+        onConfirm={handleDeleteConfirm} onCancel={() => setDeleteTarget(null)}
       />
 
       <ViewModal
-        court={viewCourt}
-        onClose={() => setViewCourt(null)}
+        court={viewCourt} onClose={() => setViewCourt(null)}
         onEdit={c => { setEditCourt(c); setShowForm(true) }}
       />
 
       <CourtFormModal
-        show={showForm} editCourt={editCourt}
-        grounds={grounds} sports={sports}
+        show={showForm} editCourt={editCourt} grounds={grounds} sports={sports}
         onClose={() => { setShowForm(false); setEditCourt(null) }}
         onSaved={fetchAll} toast={toast}
       />
@@ -546,7 +806,7 @@ export default function Courts() {
             </div>
             <h1 className="text-2xl font-bold text-black">Courts</h1>
           </div>
-          <p className="text-neutral-500 text-sm">Manage all courts — linked to sport grounds</p>
+          <p className="text-neutral-500 text-sm">Manage all courts — with ground, academy & sport details</p>
         </div>
         <div className="flex gap-2">
           <button onClick={fetchAll}
@@ -580,7 +840,7 @@ export default function Courts() {
       <div className="flex flex-wrap items-center gap-3">
         <div className="flex items-center gap-2 bg-white border border-neutral-200 rounded-lg px-3 py-2 flex-1 min-w-48 max-w-sm">
           <Search className="h-3.5 w-3.5 text-neutral-400 shrink-0" />
-          <input type="text" placeholder="Search name, ground, sport, status..."
+          <input type="text" placeholder="Search court, ground, academy, sport, status..."
             value={search} onChange={e => setSearch(e.target.value)}
             className="bg-transparent text-xs text-black outline-none w-full placeholder:text-neutral-400" />
           {search && (
@@ -604,6 +864,14 @@ export default function Courts() {
         </div>
       </div>
 
+      {/* ── Hint ── */}
+      {!loading && filtered.length > 0 && viewMode === 'table' && (
+        <p className="text-[11px] text-neutral-400 flex items-center gap-1">
+          <ChevronDown className="h-3 w-3" />
+          Click the arrow on any row to expand ground, academy & sports details
+        </p>
+      )}
+
       {/* ── Loading ── */}
       {loading && (
         <div className="bg-white rounded-2xl border border-neutral-200 py-20 flex flex-col items-center gap-3">
@@ -614,107 +882,35 @@ export default function Courts() {
 
       {/* ── TABLE VIEW ── */}
       {!loading && viewMode === 'table' && (
-        <div className="bg-white rounded-2xl border border-neutral-200 overflow-hidden">
-          <table className="w-full text-sm">
+        <div className="bg-white rounded-2xl border border-neutral-200 overflow-hidden overflow-x-auto">
+          <table className="w-full text-sm" style={{ minWidth: 1200 }}>
             <thead className="bg-neutral-50 border-b border-neutral-200">
               <tr>
-                {['#','Name','Ground','Sport','Description','Price / hr','Status','Active','Actions'].map(h => (
-                  <th key={h} className="text-left px-4 py-3 text-[11px] text-neutral-400 font-semibold whitespace-nowrap">{h}</th>
+                {TABLE_HEADERS.map((h, i) => (
+                  <th key={i} className="text-left px-4 py-3 text-[11px] text-neutral-400 font-semibold whitespace-nowrap">{h}</th>
                 ))}
               </tr>
             </thead>
             <tbody>
               {filtered.length === 0 ? (
                 <tr>
-                  <td colSpan={9} className="text-center py-14 text-neutral-400 text-sm">
+                  <td colSpan={TABLE_HEADERS.length} className="text-center py-14 text-neutral-400 text-sm">
                     <Grid className="h-7 w-7 mx-auto mb-2 text-neutral-200" />
                     No courts found
                   </td>
                 </tr>
-              ) : filtered.map((c, i) => {
-                const id = c._id || c.id
-                return (
-                  <tr key={id} className="border-b border-neutral-100 hover:bg-neutral-50 transition-colors">
-
-                    <td className="px-4 py-3 text-neutral-400 text-xs">{i + 1}</td>
-
-                    {/* Name */}
-                    <td className="px-4 py-3">
-                      <div className="flex items-center gap-2">
-                        <div className="w-7 h-7 bg-purple-100 rounded-lg flex items-center justify-center shrink-0">
-                          <Grid className="h-3.5 w-3.5 text-purple-500" />
-                        </div>
-                        <p className="text-xs font-semibold text-black">{c.name}</p>
-                      </div>
-                    </td>
-
-                    {/* Ground */}
-                    <td className="px-4 py-3">
-                      <span className="text-xs text-purple-700 bg-purple-50 px-2 py-0.5 rounded-full whitespace-nowrap">
-                        {getName(c.groundId)}
-                      </span>
-                    </td>
-
-                    {/* Sport */}
-                    <td className="px-4 py-3">
-                      <span className="text-xs text-blue-700 bg-blue-50 px-2 py-0.5 rounded-full whitespace-nowrap">
-                        {getName(c.sportId)}
-                      </span>
-                    </td>
-
-                    {/* Description */}
-                    <td className="px-4 py-3 max-w-[140px]">
-                      <p className="text-xs text-neutral-500 truncate">{c.description || '—'}</p>
-                    </td>
-
-                    {/* Price */}
-                    <td className="px-4 py-3">
-                      <div className="flex items-center gap-1">
-                        {/* <DollarSign className="h-3 w-3 text-neutral-400" /> */}
-                        <span className="text-xs font-semibold text-neutral-700">
-                          {c.pricePerHour ? `₹${c.pricePerHour}` : '—'}
-                        </span>
-                      </div>
-                    </td>
-
-                    {/* Status */}
-                    <td className="px-4 py-3">
-                      <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium border capitalize ${statusColor(c.status)}`}>
-                        {c.status || '—'}
-                      </span>
-                    </td>
-
-                    {/* Active toggle */}
-                    <td className="px-4 py-3">
-                      <button onClick={() => handleToggle(c)} disabled={togglingId===id}
-                        className={`text-[10px] px-2 py-0.5 rounded-full font-medium cursor-pointer disabled:opacity-60 transition-all
-                          ${c.isActive
-                            ? 'bg-purple-100 text-purple-700 hover:bg-purple-200'
-                            : 'bg-neutral-100 text-neutral-500 hover:bg-neutral-200'}`}>
-                        {togglingId===id ? '...' : c.isActive ? 'Active' : 'Inactive'}
-                      </button>
-                    </td>
-
-                    {/* Actions */}
-                    <td className="px-4 py-3">
-                      <div className="flex items-center gap-1.5">
-                        <button onClick={() => setViewCourt(c)}
-                          className="p-1.5 rounded-lg bg-blue-50 border border-blue-200 text-blue-500 hover:bg-blue-100">
-                          <Eye className="h-3.5 w-3.5" />
-                        </button>
-                        <button onClick={() => { setEditCourt(c); setShowForm(true) }}
-                          className="p-1.5 rounded-lg bg-amber-50 border border-amber-200 text-amber-500 hover:bg-amber-100">
-                          <Edit className="h-3.5 w-3.5" />
-                        </button>
-                        <button onClick={() => setDeleteTarget({ id, name: c.name })}
-                          className="p-1.5 rounded-lg bg-red-50 border border-red-200 text-red-500 hover:bg-red-100">
-                          <Trash2 className="h-3.5 w-3.5" />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                )
-              })}
+              ) : filtered.map((c, i) => (
+                <CourtRow
+                  key={c._id || c.id}
+                  court={c}
+                  idx={i}
+                  onView={setViewCourt}
+                  onEdit={c => { setEditCourt(c); setShowForm(true) }}
+                  onDelete={setDeleteTarget}
+                  onToggle={handleToggle}
+                  togglingId={togglingId}
+                />
+              ))}
             </tbody>
           </table>
           {filtered.length > 0 && (
@@ -735,26 +931,33 @@ export default function Courts() {
             </div>
           ) : filtered.map(c => {
             const id = c._id || c.id
+            const g  = c.groundId
+            const s  = c.sportId
+            const a  = g?.academyId
             return (
               <div key={id}
                 className="bg-white rounded-2xl border border-neutral-200 hover:border-purple-300 hover:shadow-sm transition-all overflow-hidden">
 
-                {/* Card header */}
-                <div className="bg-gradient-to-br from-purple-50 to-purple-100/40 px-5 pt-5 pb-4 flex items-start justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 bg-purple-600 rounded-xl flex items-center justify-center">
-                      <Grid className="h-5 w-5 text-white" />
+                {/* Academy image strip */}
+                {a?.image && (
+                  <div className="w-full h-20 overflow-hidden">
+                    <img src={a.image} alt={a.name} className="w-full h-full object-cover" />
+                  </div>
+                )}
+
+                <div className="bg-gradient-to-br from-purple-50 to-purple-100/40 px-4 pt-4 pb-3 flex items-start justify-between">
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-9 h-9 bg-purple-600 rounded-xl flex items-center justify-center shrink-0">
+                      <Grid className="h-4 w-4 text-white" />
                     </div>
                     <div>
                       <p className="text-sm font-bold text-black">{c.name}</p>
-                      <p className="text-[10px] text-neutral-500 mt-0.5">{getName(c.groundId)}</p>
+                      <p className="text-[10px] text-neutral-500 mt-0.5">{getName(g)} · {a?.name || ''}</p>
                     </div>
                   </div>
                   <button onClick={() => handleToggle(c)} disabled={togglingId===id}
                     className={`text-[10px] px-2.5 py-1 rounded-full font-medium cursor-pointer disabled:opacity-60 shrink-0 border
-                      ${c.isActive
-                        ? 'bg-purple-100 text-purple-700 border-purple-200'
-                        : 'bg-neutral-100 text-neutral-500 border-neutral-200'}`}>
+                      ${c.isActive ? 'bg-purple-100 text-purple-700 border-purple-200' : 'bg-neutral-100 text-neutral-500 border-neutral-200'}`}>
                     {togglingId===id ? '...' : c.isActive ? 'Active' : 'Inactive'}
                   </button>
                 </div>
@@ -765,9 +968,17 @@ export default function Courts() {
                     <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium border capitalize ${statusColor(c.status)}`}>
                       {c.status || 'unknown'}
                     </span>
-                    <span className="text-[10px] bg-blue-50 text-blue-700 border border-blue-200 px-2 py-0.5 rounded-full font-medium">
-                      {getName(c.sportId)}
-                    </span>
+                    {s?.image
+                      ? (
+                        <div className="flex items-center gap-1 bg-blue-50 border border-blue-200 rounded-full px-2 py-0.5">
+                          <img src={s.image} alt={s.name} className="w-3 h-3 rounded object-cover" />
+                          <span className="text-[10px] font-medium text-blue-700 capitalize">{s.name}</span>
+                        </div>
+                      ) : (
+                        <span className="text-[10px] bg-blue-50 text-blue-700 border border-blue-200 px-2 py-0.5 rounded-full font-medium capitalize">
+                          {getName(s)}
+                        </span>
+                      )}
                     {c.pricePerHour && (
                       <span className="text-[10px] bg-green-50 text-green-700 border border-green-200 px-2 py-0.5 rounded-full font-medium">
                         ₹{c.pricePerHour}/hr
@@ -775,7 +986,34 @@ export default function Courts() {
                     )}
                   </div>
 
-                  {/* Description */}
+                  {/* Ground info */}
+                  {g && (
+                    <div className="bg-neutral-50 rounded-lg px-3 py-2 mb-3 space-y-1">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[10px] text-neutral-400 font-medium">Ground</span>
+                        <span className={`text-[9px] px-1.5 py-0.5 rounded-full capitalize ${groundStatusColor(g.status)}`}>{g.status}</span>
+                      </div>
+                      <p className="text-xs font-semibold text-neutral-800">{g.name}</p>
+                      {g.openingTime && g.closingTime && (
+                        <div className="flex items-center gap-1 text-[10px] text-neutral-500">
+                          <Clock className="h-2.5 w-2.5" />
+                          <span>{g.openingTime} – {g.closingTime}</span>
+                        </div>
+                      )}
+                      {/* All sports in ground */}
+                      {Array.isArray(g.sports) && g.sports.length > 0 && (
+                        <div className="flex flex-wrap gap-1 pt-1">
+                          {g.sports.map(sp => (
+                            <div key={sp._id} className="flex items-center gap-1 bg-white rounded px-1 py-0.5 border border-neutral-200">
+                              {sp.image && <img src={sp.image} alt={sp.name} className="w-3 h-3 rounded object-cover" />}
+                              <span className="text-[9px] text-neutral-500 capitalize">{sp.name}</span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
+
                   {c.description && (
                     <p className="text-[11px] text-neutral-500 mb-3 line-clamp-2">{c.description}</p>
                   )}

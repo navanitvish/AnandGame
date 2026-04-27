@@ -283,7 +283,7 @@ export const toggleSportStatus = (id) =>
 export const getVenues        = () => api.get('/venues/getAll')
 export const createVenue      = (fd) => api.post('/venues/create', fd)
 export const updateVenue      = (id, fd) => api.put(`/venues/update/${id}`, fd)
-export const deleteVenue      = (id) => api.delete(`/venues/${id}`)
+export const deleteVenue      = (id) => api.delete(`/venues/delete/${id}`)
 export const toggleVenueStatus = (id) => api.patch(`/venues/${id}/toggle`)
 
 
@@ -383,5 +383,14 @@ export const createLocation = (locationData) =>
 
   export const getLocation = (userId) =>
   api.get(`/locations/getAll?userId=${userId}`)
+
+  /**
+ * GET /locations/get/:id
+ * Fetches a single location by its ID.
+ * Returns { success, data: Location }
+ * — moved from the inline fetchSingleLocation in Venues.jsx
+ */
+export const getLocationById = (locationId) =>
+  api.get(`/locations/get/${locationId}`)
 
 export default api

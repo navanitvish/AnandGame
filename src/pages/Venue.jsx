@@ -6,6 +6,7 @@ import {
   deleteVenue,
   toggleVenueStatus,
   getLocation,
+  getLocationById,   // ✅ replaces inline fetchSingleLocation
   getAcademyManagers,
 } from '../api/api'
 
@@ -18,25 +19,23 @@ const locationLabel = (l) => {
   return l._id || l.id || '—'
 }
 
-// ─── Fetch a single venue's location by locationId ────────────────────────
-const fetchSingleLocation = async (locationId) => {
-  if (!locationId) return null
-  try {
-    const res = await fetch(`https://aanandgames.onrender.com/aanand-sports/locations/get/${locationId}`)
-    const json = await res.json()
-    if (json?.data) return json.data
-    return null
-  } catch {
-    return null
-  }
-}
-
 // ─── Normalize locations from any API response shape ──────────────────────
+// Handles: [], { data: [] }, { data: { data: [] } }, { data: { data: { data: [] } } }
 const extractLocations = (res) => {
   if (Array.isArray(res))                         return res
   if (Array.isArray(res?.data))                   return res.data
   if (Array.isArray(res?.data?.data))             return res.data.data
   if (Array.isArray(res?.data?.data?.data))       return res.data.data.data
+  return []
+}
+
+// ─── Extract venues from API response ─────────────────────────────────────
+// API shape: { success, message, data: { total, totalPages, page, limit, data: Venue[] } }
+const extractVenues = (res) => {
+  if (Array.isArray(res))                         return res
+  if (Array.isArray(res?.data))                   return res.data
+  if (Array.isArray(res?.data?.data))             return res.data.data        // ✅ { data: { data: [] } }
+  if (Array.isArray(res?.data?.data?.data))       return res.data.data.data   // deeper nesting fallback
   return []
 }
 
@@ -105,12 +104,8 @@ function ConfirmModal({ show, name, loading, onConfirm, onCancel }) {
 }
 
 // ─── View Modal ───────────────────────────────────────────────────────────────
-function ViewModal({ venue, locationMap, academies, onClose }) {
+function ViewModal({ venue, locationMap, onClose }) {
   if (!venue) return null
-
-  // ✅ FIX: use academy.name (nested), not user's name
-  const academy = academies.find((a) => a.academyId === venue.academyId)
-  const academyName = academy?.academy?.name || academy?.name || venue.academyId || '—'
 
   const locDisplay = locationMap[venue.locationId]
     ? locationLabel(locationMap[venue.locationId])
@@ -146,7 +141,6 @@ function ViewModal({ venue, locationMap, academies, onClose }) {
           {[
             { label: 'ID',          value: venue._id || venue.id },
             { label: 'Name',        value: venue.name },
-            { label: 'Academy',     value: academyName },
             { label: 'Location',    value: locDisplay },
             { label: 'Description', value: venue.description || '—' },
             {
@@ -199,7 +193,6 @@ function VenueFormModal({ show, editVenue, academies, academiesLoading, onClose,
     setLocationsLoading(true)
     try {
       const res = await getLocation(academyId)
-      // ✅ FIX: handle nested { data: { data: [...] } } shape
       const list = extractLocations(res)
       setLocations(list)
     } catch {
@@ -231,7 +224,6 @@ function VenueFormModal({ show, editVenue, academies, academiesLoading, onClose,
     setErrors({})
   }, [editVenue, show])
 
-  // ── Academy change ────────────────────────────────────────────────────────
   const handleAcademyChange = (e) => {
     const academyId = e.target.value
     setForm((prev) => ({ ...prev, academyId, locationId: '' }))
@@ -239,7 +231,6 @@ function VenueFormModal({ show, editVenue, academies, academiesLoading, onClose,
     fetchLocationsByAcademy(academyId)
   }
 
-  // ── Validation ────────────────────────────────────────────────────────────
   const validate = () => {
     const e = {}
     if (!form.academyId.trim())  e.academyId  = 'Academy is required'
@@ -248,7 +239,6 @@ function VenueFormModal({ show, editVenue, academies, academiesLoading, onClose,
     return e
   }
 
-  // ── Image handler ─────────────────────────────────────────────────────────
   const handleFile = (e) => {
     const f = e.target.files[0]
     if (!f) return
@@ -256,7 +246,6 @@ function VenueFormModal({ show, editVenue, academies, academiesLoading, onClose,
     setPreview(URL.createObjectURL(f))
   }
 
-  // ── Submit ────────────────────────────────────────────────────────────────
   const handleSubmit = async () => {
     const e = validate()
     if (Object.keys(e).length) { setErrors(e); return }
@@ -308,7 +297,7 @@ function VenueFormModal({ show, editVenue, academies, academiesLoading, onClose,
         {/* Body */}
         <div className="px-6 py-5 space-y-4 max-h-[75vh] overflow-y-auto">
 
-          {/* ── Image Upload ── */}
+          {/* Image Upload */}
           <div>
             <label className="text-xs text-neutral-500 mb-1 block">
               Image <span className="text-neutral-300">(optional)</span>
@@ -326,20 +315,10 @@ function VenueFormModal({ show, editVenue, academies, academiesLoading, onClose,
                 </div>
               )}
             </div>
-            <input
-              ref={fileRef}
-              type="file"
-              accept="image/*"
-              className="hidden"
-              onChange={handleFile}
-            />
+            <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handleFile} />
             {preview && (
               <button
-                onClick={() => {
-                  setPreview(null)
-                  setFile(null)
-                  if (fileRef.current) fileRef.current.value = ''
-                }}
+                onClick={() => { setPreview(null); setFile(null); if (fileRef.current) fileRef.current.value = '' }}
                 className="text-xs text-red-400 hover:text-red-600 mt-1 transition-colors"
               >
                 Remove image
@@ -347,8 +326,7 @@ function VenueFormModal({ show, editVenue, academies, academiesLoading, onClose,
             )}
           </div>
 
-          {/* ── Academy Dropdown ── */}
-          {/* ✅ FIX: show a.academy.name (nested academy name), value = a.academyId */}
+          {/* Academy Dropdown */}
           <div>
             <label className="text-xs text-neutral-500 mb-1 block">Academy *</label>
             {academiesLoading ? (
@@ -367,7 +345,6 @@ function VenueFormModal({ show, editVenue, academies, academiesLoading, onClose,
                 <option value="">— Select an academy —</option>
                 {academies.map((a) => (
                   <option key={a.academyId} value={a.academyId}>
-                    {/* ✅ FIX: a.academy.name is the real academy name */}
                     {a.academy?.name || a.name || a.email}
                   </option>
                 ))}
@@ -377,12 +354,10 @@ function VenueFormModal({ show, editVenue, academies, academiesLoading, onClose,
                 No academies found
               </div>
             )}
-            {errors.academyId && (
-              <p className="text-xs text-red-400 mt-1">{errors.academyId}</p>
-            )}
+            {errors.academyId && <p className="text-xs text-red-400 mt-1">{errors.academyId}</p>}
           </div>
 
-          {/* ── Location Dropdown ── */}
+          {/* Location Dropdown */}
           <div>
             <label className="text-xs text-neutral-500 mb-1 block">Location *</label>
             {!form.academyId ? (
@@ -417,12 +392,10 @@ function VenueFormModal({ show, editVenue, academies, academiesLoading, onClose,
                 No locations found for this academy
               </div>
             )}
-            {errors.locationId && (
-              <p className="text-xs text-red-400 mt-1">{errors.locationId}</p>
-            )}
+            {errors.locationId && <p className="text-xs text-red-400 mt-1">{errors.locationId}</p>}
           </div>
 
-          {/* ── Venue Name ── */}
+          {/* Venue Name */}
           <div>
             <label className="text-xs text-neutral-500 mb-1 block">Venue Name *</label>
             <input
@@ -440,7 +413,7 @@ function VenueFormModal({ show, editVenue, academies, academiesLoading, onClose,
             {errors.name && <p className="text-xs text-red-400 mt-1">{errors.name}</p>}
           </div>
 
-          {/* ── Description ── */}
+          {/* Description */}
           <div>
             <label className="text-xs text-neutral-500 mb-1 block">
               Description <span className="text-neutral-300">(optional)</span>
@@ -454,7 +427,7 @@ function VenueFormModal({ show, editVenue, academies, academiesLoading, onClose,
             />
           </div>
 
-          {/* ── Status ── */}
+          {/* Status */}
           <div>
             <label className="text-xs text-neutral-500 mb-1 block">
               Status <span className="text-neutral-300">(default: Active)</span>
@@ -517,14 +490,12 @@ export default function Venues() {
   const [locationMap, setLocationMap] = useState({})
 
   // ── Fetch Venues ──────────────────────────────────────────────────────────
+  // API response shape: { success, message, data: { total, totalPages, page, limit, data: Venue[] } }
   const fetchVenues = async () => {
     setLoading(true)
     try {
       const res = await getVenues()
-      let list = []
-      if (Array.isArray(res))                 list = res
-      else if (Array.isArray(res.data))       list = res.data
-      else if (Array.isArray(res.data?.data)) list = res.data.data
+      const list = extractVenues(res)  // ✅ handles nested data.data shape
       setVenues(list)
       return list
     } catch (err) {
@@ -542,8 +513,8 @@ export default function Venues() {
       const res = await getAcademyManagers()
       let list = []
       if (Array.isArray(res))                 list = res
-      else if (Array.isArray(res.data))       list = res.data
-      else if (Array.isArray(res.data?.data)) list = res.data.data
+      else if (Array.isArray(res?.data))      list = res.data
+      else if (Array.isArray(res?.data?.data)) list = res.data.data
       setAcademies(list)
       return list
     } catch {
@@ -555,19 +526,18 @@ export default function Venues() {
   }
 
   // ── Build locationMap ─────────────────────────────────────────────────────
-  // Step 1: bulk fetch per academy using academyId
-  // Step 2: individually fetch any remaining unresolved locationIds
+  // Step 1: bulk fetch per academy using academyId (userId)
+  // Step 2: individually fetch any still-unresolved locationIds via getLocationById
   const buildLocationMap = async (academyList, venueList) => {
     const map = {}
 
-    // Step 1: bulk fetch per academy
+    // Step 1 — bulk fetch per academy
     if (academyList.length > 0) {
       const results = await Promise.allSettled(
         academyList.map((a) => getLocation(a.academyId))
       )
       results.forEach((r) => {
         if (r.status === 'fulfilled') {
-          // ✅ FIX: handle deeply nested { data: { data: [...] } } shape
           const locs = extractLocations(r.value)
           locs.forEach((l) => {
             const lid = l._id || l.id
@@ -577,7 +547,8 @@ export default function Venues() {
       })
     }
 
-    // Step 2: individually fetch still-unresolved locationIds
+    // Step 2 — individually resolve remaining locationIds via getLocationById
+    // (uses /locations/get/:id — previously inline fetchSingleLocation)
     const unresolvedIds = [
       ...new Set(
         venueList
@@ -588,13 +559,16 @@ export default function Venues() {
 
     if (unresolvedIds.length > 0) {
       const singles = await Promise.allSettled(
-        unresolvedIds.map((id) => fetchSingleLocation(id))
+        unresolvedIds.map((id) => getLocationById(id))
       )
       singles.forEach((r, i) => {
         if (r.status === 'fulfilled' && r.value) {
-          const l = r.value
-          const lid = l._id || l.id || unresolvedIds[i]
-          map[lid] = l
+          // getLocationById returns axios-unwrapped response: { success, data: Location }
+          const loc = r.value?.data || r.value
+          if (loc) {
+            const lid = loc._id || loc.id || unresolvedIds[i]
+            map[lid] = loc
+          }
         }
       })
     }
@@ -674,14 +648,6 @@ export default function Venues() {
     return loc ? locationLabel(loc) : locationId
   }
 
-  // ── Resolve academyId → academy name ─────────────────────────────────────
-  // ✅ FIX: use a.academy.name (nested), not a.name (user's name)
-  const getAcademyName = (academyId) => {
-    if (!academyId) return '—'
-    const a = academies.find((x) => x.academyId === academyId)
-    return a ? (a.academy?.name || a.name || a.email || academyId) : academyId
-  }
-
   // ──────────────────────────────────────────────────────────────────────────
   return (
     <div>
@@ -698,7 +664,6 @@ export default function Venues() {
       <ViewModal
         venue={viewVenue}
         locationMap={locationMap}
-        academies={academies}
         onClose={() => setViewVenue(null)}
       />
 
@@ -712,7 +677,7 @@ export default function Venues() {
         toast={toast}
       />
 
-      {/* ── Page Header ──────────────────────────────────────────────────── */}
+      {/* Page Header */}
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-2xl font-bold text-black">Venues</h1>
@@ -726,7 +691,7 @@ export default function Venues() {
         </button>
       </div>
 
-      {/* ── Search ───────────────────────────────────────────────────────── */}
+      {/* Search */}
       <div className="mb-4">
         <input
           type="text"
@@ -737,12 +702,12 @@ export default function Venues() {
         />
       </div>
 
-      {/* ── Table ────────────────────────────────────────────────────────── */}
+      {/* Table */}
       <div className="bg-white rounded-xl border border-neutral-200 overflow-hidden">
         <table className="w-full text-sm">
           <thead className="bg-neutral-50 border-b border-neutral-200">
             <tr>
-              {['#',"Id", 'Image', 'Name', 'Academy', 'Location', 'Description', 'Status', 'Created', 'Actions'].map((h) => (
+              {['#', 'ID', 'Image', 'Name', 'Location', 'Description', 'Status', 'Created', 'Actions'].map((h) => (
                 <th key={h} className="text-left px-5 py-3 text-neutral-400 font-medium text-xs">
                   {h}
                 </th>
@@ -771,13 +736,13 @@ export default function Venues() {
                 return (
                   <tr key={id} className="border-b border-neutral-100 hover:bg-neutral-50 transition-colors">
 
-
                     {/* # */}
                     <td className="px-5 py-3 text-neutral-400 text-xs">{i + 1}</td>
 
-                     <td className="px-5 py-3">
+                    {/* Short ID */}
+                    <td className="px-5 py-3">
                       <span className="text-xs bg-blue-50 text-blue-600 px-2 py-0.5 rounded-full whitespace-nowrap">
-                       {v._id.slice(-6).toUpperCase()}
+                        {(v._id || v.id || '').slice(-6).toUpperCase()}
                       </span>
                     </td>
 
@@ -800,10 +765,7 @@ export default function Venues() {
                     {/* Name */}
                     <td className="px-5 py-3 font-medium text-black capitalize">{v.name}</td>
 
-                    {/* Academy — ✅ resolved via a.academy.name */}
-                   
-
-                    {/* Location — ✅ resolved from locationMap */}
+                    {/* Location — resolved from locationMap */}
                     <td className="px-5 py-3">
                       <span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full capitalize">
                         {getLocationDisplay(v.locationId)}

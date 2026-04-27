@@ -39,16 +39,16 @@ const ROLE = {
 const adminLinks = [
   { path: '/dashboard', label: 'Dashboard', sub: 'Overview & analytics', icon: LayoutDashboard },
   { path: '/users', label: 'Users', sub: 'Manage all users', icon: Users },
-   { path: '/academyjoin', label: 'Academy Join', sub: 'Manage all academyjoin', icon: Users },
-   
+  { path: '/academyjoin', label: 'Academy Join', sub: 'Manage all academyjoin', icon: Users },
+
   { path: '/catgeory', label: 'Category', sub: 'Manage categories', icon: Tag },
   { path: '/games', label: 'Games', sub: 'All active games', icon: Gamepad2 },
-    { path: '/venue', label: 'Venue', sub: 'Manage venues', icon: Building2 },
+  { path: '/venue', label: 'Venue', sub: 'Manage venues', icon: Building2 },
   { path: '/playground', label: 'Join Games', sub: 'City-wise grounds', icon: Dumbbell },
-   { path: '/grounds', label: 'grounds', sub: 'Manage Grounds', icon: Clock },
+  { path: '/grounds', label: 'grounds', sub: 'Manage Grounds', icon: Clock },
   { path: '/courts', label: 'Courts', sub: 'Manage Courts', icon: Brain },
- 
-  
+
+
   { path: '/banners', label: 'Banners', sub: 'Manage banners', icon: Image },
   // { path: '/locations', label: 'Locations', sub: 'Manage locations', icon: MapPin },
 
@@ -57,7 +57,7 @@ const adminLinks = [
   { path: '/privacy-policys', label: 'Privacy Policy', sub: 'Manage privacy policy', icon: ScrollText },
   { path: '/term-conditions', label: 'Terms & Conditions', sub: 'Manage terms', icon: FileText },
   { path: '/plan', label: 'Plan', sub: 'Manage plans', icon: CreditCard },
-    { path: '/revenueShare', label: 'Revenue Share', sub: 'Manage RevenueShare', icon: CreditCard },
+  { path: '/revenueShare', label: 'Revenue Share', sub: 'Manage RevenueShare', icon: CreditCard },
 ]
 
 // ─────────────────────────────────────────────
@@ -66,11 +66,12 @@ const adminLinks = [
 const academyLinks = [
   { path: '/dashboard', label: 'Dashboard', sub: 'Academy overview', icon: LayoutDashboard },
   { path: '/playground', label: 'Spordround', sub: 'City-wise grounds', icon: Dumbbell },
-   { path: '/grounds', label: 'grounds', sub: 'Manage Grounds', icon: Clock },
+  { path: '/venue', label: 'Venue', sub: 'Manage venues', icon: Building2 },
+  { path: '/grounds', label: 'grounds', sub: 'Manage Grounds', icon: Clock },
   { path: '/courts', label: 'Courts', sub: 'Manage Courts', icon: Brain },
- 
+
   { path: '/booking', label: 'Bookings', sub: 'Manage Bookings', icon: Clock },
-   { path: '/courtbooking', label: 'Court Bookings', sub: 'Manage Bookings', icon: Clock },
+  { path: '/courtbooking', label: 'Court Bookings', sub: 'Manage Bookings', icon: Clock },
   // { path: '/academy/performance', label: 'Performance', sub: 'Track results', icon: BarChart2 },
 ]
 
@@ -78,11 +79,11 @@ const academyLinks = [
 // THEORY BADGES (SAME UI)
 // ─────────────────────────────────────────────
 const theoryBadges = [
-  { icon: Swords,  label: 'Zero-Sum',    color: 'text-red-400'    },
-  { icon: Brain,   label: 'Minimax',     color: 'text-purple-400' },
-  { icon: Shield,  label: 'Pareto',      color: 'text-blue-400'   },
-  { icon: Trophy,  label: 'Cooperative', color: 'text-yellow-400' },
-  { icon: Target,  label: "Prisoner's",  color: 'text-green-400'  },
+  { icon: Swords, label: 'Zero-Sum', color: 'text-red-400' },
+  { icon: Brain, label: 'Minimax', color: 'text-purple-400' },
+  { icon: Shield, label: 'Pareto', color: 'text-blue-400' },
+  { icon: Trophy, label: 'Cooperative', color: 'text-yellow-400' },
+  { icon: Target, label: "Prisoner's", color: 'text-green-400' },
 ]
 
 // ─────────────────────────────────────────────
@@ -140,27 +141,24 @@ export default function Sidebar() {
             key={path}
             to={path}
             className={({ isActive }) =>
-              `group relative flex items-center gap-3 px-3 py-3 rounded-xl transition-all duration-200 ${
-                isActive
-                  ? 'bg-purple-600/20 border border-purple-500/40'
-                  : 'hover:bg-neutral-800/60 border border-transparent'
+              `group relative flex items-center gap-3 px-3 py-3 rounded-xl transition-all duration-200 ${isActive
+                ? 'bg-purple-600/20 border border-purple-500/40'
+                : 'hover:bg-neutral-800/60 border border-transparent'
               }`
             }
           >
             {({ isActive }) => (
               <>
-                <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${
-                  isActive
+                <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${isActive
                     ? 'bg-purple-600 shadow-md shadow-purple-900/50'
                     : 'bg-neutral-800 group-hover:bg-neutral-700'
-                }`}>
+                  }`}>
                   <Icon size={15} className={isActive ? 'text-white' : 'text-neutral-400 group-hover:text-white'} />
                 </div>
 
                 <div className="flex-1 min-w-0">
-                  <p className={`text-xs font-semibold ${
-                    isActive ? 'text-white' : 'text-neutral-300 group-hover:text-white'
-                  }`}>
+                  <p className={`text-xs font-semibold ${isActive ? 'text-white' : 'text-neutral-300 group-hover:text-white'
+                    }`}>
                     {label}
                   </p>
                   <p className="text-[10px] text-neutral-600 mt-0.5 truncate">{sub}</p>
