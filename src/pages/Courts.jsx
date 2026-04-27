@@ -670,7 +670,7 @@ export default function Courts() {
                     {/* Price */}
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-1">
-                        <DollarSign className="h-3 w-3 text-neutral-400" />
+                        {/* <DollarSign className="h-3 w-3 text-neutral-400" /> */}
                         <span className="text-xs font-semibold text-neutral-700">
                           {c.pricePerHour ? `₹${c.pricePerHour}` : '—'}
                         </span>

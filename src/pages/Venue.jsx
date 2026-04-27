@@ -5,8 +5,40 @@ import {
   updateVenue,
   deleteVenue,
   toggleVenueStatus,
-  getLocations,
+  getLocation,
+  getAcademyManagers,
 } from '../api/api'
+
+// ─── Location label helper ─────────────────────────────────────────────────
+const locationLabel = (l) => {
+  if (!l) return '—'
+  if (l.name) return l.name
+  if (l.city && l.state) return `${l.city}, ${l.state}`
+  if (l.formattedAddress) return l.formattedAddress
+  return l._id || l.id || '—'
+}
+
+// ─── Fetch a single venue's location by locationId ────────────────────────
+const fetchSingleLocation = async (locationId) => {
+  if (!locationId) return null
+  try {
+    const res = await fetch(`https://aanandgames.onrender.com/aanand-sports/locations/get/${locationId}`)
+    const json = await res.json()
+    if (json?.data) return json.data
+    return null
+  } catch {
+    return null
+  }
+}
+
+// ─── Normalize locations from any API response shape ──────────────────────
+const extractLocations = (res) => {
+  if (Array.isArray(res))                         return res
+  if (Array.isArray(res?.data))                   return res.data
+  if (Array.isArray(res?.data?.data))             return res.data.data
+  if (Array.isArray(res?.data?.data?.data))       return res.data.data.data
+  return []
+}
 
 // ─── Toast Hook ───────────────────────────────────────────────────────────────
 function useToast() {
@@ -73,9 +105,17 @@ function ConfirmModal({ show, name, loading, onConfirm, onCancel }) {
 }
 
 // ─── View Modal ───────────────────────────────────────────────────────────────
-function ViewModal({ venue, locations, onClose }) {
+function ViewModal({ venue, locationMap, academies, onClose }) {
   if (!venue) return null
-  const loc = locations.find((l) => (l._id || l.id) === venue.locationId)
+
+  // ✅ FIX: use academy.name (nested), not user's name
+  const academy = academies.find((a) => a.academyId === venue.academyId)
+  const academyName = academy?.academy?.name || academy?.name || venue.academyId || '—'
+
+  const locDisplay = locationMap[venue.locationId]
+    ? locationLabel(locationMap[venue.locationId])
+    : venue.locationId || '—'
+
   return (
     <div className="fixed inset-0 bg-black/40 z-40 flex items-center justify-center backdrop-blur-sm">
       <div className="bg-white rounded-2xl p-6 shadow-2xl w-96 max-w-full mx-4">
@@ -106,7 +146,8 @@ function ViewModal({ venue, locations, onClose }) {
           {[
             { label: 'ID',          value: venue._id || venue.id },
             { label: 'Name',        value: venue.name },
-            { label: 'Location',    value: loc ? (loc.name || loc.city || loc._id) : venue.locationId || '—' },
+            { label: 'Academy',     value: academyName },
+            { label: 'Location',    value: locDisplay },
             { label: 'Description', value: venue.description || '—' },
             {
               label: 'Status',
@@ -120,7 +161,9 @@ function ViewModal({ venue, locations, onClose }) {
             {
               label: 'Created',
               value: venue.createdAt
-                ? new Date(venue.createdAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })
+                ? new Date(venue.createdAt).toLocaleDateString('en-IN', {
+                    day: '2-digit', month: 'short', year: 'numeric',
+                  })
                 : '—',
             },
           ].map(({ label, value }) => (
@@ -136,38 +179,76 @@ function ViewModal({ venue, locations, onClose }) {
 }
 
 // ─── Add / Edit Form Modal ────────────────────────────────────────────────────
-function VenueFormModal({ show, editVenue, locations, locationsLoading, onClose, onSaved, toast }) {
+function VenueFormModal({ show, editVenue, academies, academiesLoading, onClose, onSaved, toast }) {
   const fileRef = useRef(null)
-  const [form, setForm]       = useState({ locationId: '', name: '', description: '', isActive: 'true' })
+
+  const [form, setForm]       = useState({
+    academyId: '', locationId: '', name: '', description: '', isActive: 'true',
+  })
   const [preview, setPreview] = useState(null)
   const [file, setFile]       = useState(null)
   const [loading, setLoading] = useState(false)
   const [errors, setErrors]   = useState({})
 
+  const [locations,        setLocations]        = useState([])
+  const [locationsLoading, setLocationsLoading] = useState(false)
+
+  // ── Fetch locations by academyId ──────────────────────────────────────────
+  const fetchLocationsByAcademy = async (academyId) => {
+    if (!academyId) { setLocations([]); return }
+    setLocationsLoading(true)
+    try {
+      const res = await getLocation(academyId)
+      // ✅ FIX: handle nested { data: { data: [...] } } shape
+      const list = extractLocations(res)
+      setLocations(list)
+    } catch {
+      setLocations([])
+    } finally {
+      setLocationsLoading(false)
+    }
+  }
+
+  // ── Populate form when modal opens ────────────────────────────────────────
   useEffect(() => {
+    if (!show) return
     if (editVenue) {
       setForm({
+        academyId:   editVenue.academyId   || '',
         locationId:  editVenue.locationId  || '',
         name:        editVenue.name        || '',
         description: editVenue.description || '',
         isActive:    editVenue.isActive !== undefined ? String(editVenue.isActive) : 'true',
       })
       setPreview(editVenue.image || null)
+      if (editVenue.academyId) fetchLocationsByAcademy(editVenue.academyId)
     } else {
-      setForm({ locationId: '', name: '', description: '', isActive: 'true' })
+      setForm({ academyId: '', locationId: '', name: '', description: '', isActive: 'true' })
       setPreview(null)
+      setLocations([])
     }
     setFile(null)
     setErrors({})
   }, [editVenue, show])
 
+  // ── Academy change ────────────────────────────────────────────────────────
+  const handleAcademyChange = (e) => {
+    const academyId = e.target.value
+    setForm((prev) => ({ ...prev, academyId, locationId: '' }))
+    setErrors((prev) => ({ ...prev, academyId: '' }))
+    fetchLocationsByAcademy(academyId)
+  }
+
+  // ── Validation ────────────────────────────────────────────────────────────
   const validate = () => {
     const e = {}
+    if (!form.academyId.trim())  e.academyId  = 'Academy is required'
     if (!form.locationId.trim()) e.locationId = 'Location is required'
     if (!form.name.trim())       e.name       = 'Venue name is required'
     return e
   }
 
+  // ── Image handler ─────────────────────────────────────────────────────────
   const handleFile = (e) => {
     const f = e.target.files[0]
     if (!f) return
@@ -175,6 +256,7 @@ function VenueFormModal({ show, editVenue, locations, locationsLoading, onClose,
     setPreview(URL.createObjectURL(f))
   }
 
+  // ── Submit ────────────────────────────────────────────────────────────────
   const handleSubmit = async () => {
     const e = validate()
     if (Object.keys(e).length) { setErrors(e); return }
@@ -226,7 +308,7 @@ function VenueFormModal({ show, editVenue, locations, locationsLoading, onClose,
         {/* Body */}
         <div className="px-6 py-5 space-y-4 max-h-[75vh] overflow-y-auto">
 
-          {/* Image Upload */}
+          {/* ── Image Upload ── */}
           <div>
             <label className="text-xs text-neutral-500 mb-1 block">
               Image <span className="text-neutral-300">(optional)</span>
@@ -253,7 +335,11 @@ function VenueFormModal({ show, editVenue, locations, locationsLoading, onClose,
             />
             {preview && (
               <button
-                onClick={() => { setPreview(null); setFile(null); if (fileRef.current) fileRef.current.value = '' }}
+                onClick={() => {
+                  setPreview(null)
+                  setFile(null)
+                  if (fileRef.current) fileRef.current.value = ''
+                }}
                 className="text-xs text-red-400 hover:text-red-600 mt-1 transition-colors"
               >
                 Remove image
@@ -261,11 +347,49 @@ function VenueFormModal({ show, editVenue, locations, locationsLoading, onClose,
             )}
           </div>
 
-          {/* Location Dropdown — from API */}
+          {/* ── Academy Dropdown ── */}
+          {/* ✅ FIX: show a.academy.name (nested academy name), value = a.academyId */}
+          <div>
+            <label className="text-xs text-neutral-500 mb-1 block">Academy *</label>
+            {academiesLoading ? (
+              <div className="w-full border border-neutral-200 rounded-lg px-3 py-2 text-sm text-neutral-400 bg-gray-50 flex items-center gap-2">
+                <div className="w-3 h-3 border-2 border-purple-300 border-t-purple-600 rounded-full animate-spin" />
+                Loading academies...
+              </div>
+            ) : academies.length > 0 ? (
+              <select
+                value={form.academyId}
+                onChange={handleAcademyChange}
+                className={`w-full border rounded-lg px-3 py-2 text-sm text-black outline-none
+                  focus:border-purple-400 transition-colors bg-white
+                  ${errors.academyId ? 'border-red-400' : 'border-neutral-200'}`}
+              >
+                <option value="">— Select an academy —</option>
+                {academies.map((a) => (
+                  <option key={a.academyId} value={a.academyId}>
+                    {/* ✅ FIX: a.academy.name is the real academy name */}
+                    {a.academy?.name || a.name || a.email}
+                  </option>
+                ))}
+              </select>
+            ) : (
+              <div className="w-full border border-neutral-200 rounded-lg px-3 py-2 text-sm text-neutral-400 bg-gray-50">
+                No academies found
+              </div>
+            )}
+            {errors.academyId && (
+              <p className="text-xs text-red-400 mt-1">{errors.academyId}</p>
+            )}
+          </div>
+
+          {/* ── Location Dropdown ── */}
           <div>
             <label className="text-xs text-neutral-500 mb-1 block">Location *</label>
-
-            {locationsLoading ? (
+            {!form.academyId ? (
+              <div className="w-full border border-neutral-200 rounded-lg px-3 py-2 text-sm text-neutral-400 bg-gray-50">
+                Select an academy first
+              </div>
+            ) : locationsLoading ? (
               <div className="w-full border border-neutral-200 rounded-lg px-3 py-2 text-sm text-neutral-400 bg-gray-50 flex items-center gap-2">
                 <div className="w-3 h-3 border-2 border-purple-300 border-t-purple-600 rounded-full animate-spin" />
                 Loading locations...
@@ -274,42 +398,31 @@ function VenueFormModal({ show, editVenue, locations, locationsLoading, onClose,
               <select
                 value={form.locationId}
                 onChange={(e) => {
-                  setForm({ ...form, locationId: e.target.value })
-                  setErrors({ ...errors, locationId: '' })
+                  setForm((prev) => ({ ...prev, locationId: e.target.value }))
+                  setErrors((prev) => ({ ...prev, locationId: '' }))
                 }}
-                className={`w-full border rounded-lg px-3 py-2 text-sm text-black outline-none 
+                className={`w-full border rounded-lg px-3 py-2 text-sm text-black outline-none
                   focus:border-purple-400 transition-colors bg-white
                   ${errors.locationId ? 'border-red-400' : 'border-neutral-200'}`}
               >
                 <option value="">— Select a location —</option>
                 {locations.map((l) => (
                   <option key={l._id || l.id} value={l._id || l.id}>
-                    {l.name || l.city || l.state || l._id}
+                    {locationLabel(l)}
                   </option>
                 ))}
               </select>
             ) : (
-              // fallback: no locations loaded → free text input
-              <input
-                type="text"
-                placeholder="Enter location ID manually"
-                value={form.locationId}
-                onChange={(e) => {
-                  setForm({ ...form, locationId: e.target.value })
-                  setErrors({ ...errors, locationId: '' })
-                }}
-                className={`w-full border rounded-lg px-3 py-2 text-sm text-black outline-none 
-                  focus:border-purple-400 transition-colors
-                  ${errors.locationId ? 'border-red-400' : 'border-neutral-200'}`}
-              />
+              <div className="w-full border border-neutral-200 rounded-lg px-3 py-2 text-sm text-neutral-400 bg-gray-50">
+                No locations found for this academy
+              </div>
             )}
-
             {errors.locationId && (
               <p className="text-xs text-red-400 mt-1">{errors.locationId}</p>
             )}
           </div>
 
-          {/* Venue Name */}
+          {/* ── Venue Name ── */}
           <div>
             <label className="text-xs text-neutral-500 mb-1 block">Venue Name *</label>
             <input
@@ -317,17 +430,17 @@ function VenueFormModal({ show, editVenue, locations, locationsLoading, onClose,
               placeholder="e.g. Green Valley Ground"
               value={form.name}
               onChange={(e) => {
-                setForm({ ...form, name: e.target.value })
-                setErrors({ ...errors, name: '' })
+                setForm((prev) => ({ ...prev, name: e.target.value }))
+                setErrors((prev) => ({ ...prev, name: '' }))
               }}
-              className={`w-full border rounded-lg px-3 py-2 text-sm text-black outline-none 
+              className={`w-full border rounded-lg px-3 py-2 text-sm text-black outline-none
                 focus:border-purple-400 transition-colors
                 ${errors.name ? 'border-red-400' : 'border-neutral-200'}`}
             />
             {errors.name && <p className="text-xs text-red-400 mt-1">{errors.name}</p>}
           </div>
 
-          {/* Description */}
+          {/* ── Description ── */}
           <div>
             <label className="text-xs text-neutral-500 mb-1 block">
               Description <span className="text-neutral-300">(optional)</span>
@@ -335,20 +448,20 @@ function VenueFormModal({ show, editVenue, locations, locationsLoading, onClose,
             <textarea
               placeholder="e.g. Best cricket ground in Lucknow"
               value={form.description}
-              onChange={(e) => setForm({ ...form, description: e.target.value })}
+              onChange={(e) => setForm((prev) => ({ ...prev, description: e.target.value }))}
               rows={3}
               className="w-full border border-neutral-200 rounded-lg px-3 py-2 text-sm text-black outline-none focus:border-purple-400 transition-colors resize-none"
             />
           </div>
 
-          {/* Status */}
+          {/* ── Status ── */}
           <div>
             <label className="text-xs text-neutral-500 mb-1 block">
               Status <span className="text-neutral-300">(default: Active)</span>
             </label>
             <select
               value={form.isActive}
-              onChange={(e) => setForm({ ...form, isActive: e.target.value })}
+              onChange={(e) => setForm((prev) => ({ ...prev, isActive: e.target.value }))}
               className="w-full border border-neutral-200 rounded-lg px-3 py-2 text-sm text-black outline-none focus:border-purple-400 transition-colors"
             >
               <option value="true">Active</option>
@@ -388,8 +501,6 @@ export default function Venues() {
   const { toasts, show: toast } = useToast()
 
   const [venues,           setVenues]           = useState([])
-  const [locations,        setLocations]        = useState([])
-  const [locationsLoading, setLocationsLoading] = useState(false)
   const [loading,          setLoading]          = useState(true)
   const [search,           setSearch]           = useState('')
   const [showForm,         setShowForm]         = useState(false)
@@ -398,6 +509,12 @@ export default function Venues() {
   const [deleteTarget,     setDeleteTarget]     = useState(null)
   const [deleting,         setDeleting]         = useState(false)
   const [togglingId,       setTogglingId]       = useState(null)
+
+  const [academies,        setAcademies]        = useState([])
+  const [academiesLoading, setAcademiesLoading] = useState(false)
+
+  // locationMap: { [locationId]: locationObject }
+  const [locationMap, setLocationMap] = useState({})
 
   // ── Fetch Venues ──────────────────────────────────────────────────────────
   const fetchVenues = async () => {
@@ -409,35 +526,99 @@ export default function Venues() {
       else if (Array.isArray(res.data))       list = res.data
       else if (Array.isArray(res.data?.data)) list = res.data.data
       setVenues(list)
+      return list
     } catch (err) {
       toast(err.message || 'Failed to load venues', 'error')
+      return []
     } finally {
       setLoading(false)
     }
   }
 
-  // ── Fetch Locations from API ──────────────────────────────────────────────
-  const fetchLocations = async () => {
-    setLocationsLoading(true)
+  // ── Fetch Academies ───────────────────────────────────────────────────────
+  const fetchAcademies = async () => {
+    setAcademiesLoading(true)
     try {
-      const res = await getLocations()
+      const res = await getAcademyManagers()
       let list = []
       if (Array.isArray(res))                 list = res
       else if (Array.isArray(res.data))       list = res.data
       else if (Array.isArray(res.data?.data)) list = res.data.data
-      setLocations(list)
+      setAcademies(list)
+      return list
     } catch {
-      // silent — fallback to text input in form
-      setLocations([])
+      setAcademies([])
+      return []
     } finally {
-      setLocationsLoading(false)
+      setAcademiesLoading(false)
     }
   }
 
+  // ── Build locationMap ─────────────────────────────────────────────────────
+  // Step 1: bulk fetch per academy using academyId
+  // Step 2: individually fetch any remaining unresolved locationIds
+  const buildLocationMap = async (academyList, venueList) => {
+    const map = {}
+
+    // Step 1: bulk fetch per academy
+    if (academyList.length > 0) {
+      const results = await Promise.allSettled(
+        academyList.map((a) => getLocation(a.academyId))
+      )
+      results.forEach((r) => {
+        if (r.status === 'fulfilled') {
+          // ✅ FIX: handle deeply nested { data: { data: [...] } } shape
+          const locs = extractLocations(r.value)
+          locs.forEach((l) => {
+            const lid = l._id || l.id
+            if (lid) map[lid] = l
+          })
+        }
+      })
+    }
+
+    // Step 2: individually fetch still-unresolved locationIds
+    const unresolvedIds = [
+      ...new Set(
+        venueList
+          .map((v) => v.locationId)
+          .filter((id) => id && !map[id])
+      ),
+    ]
+
+    if (unresolvedIds.length > 0) {
+      const singles = await Promise.allSettled(
+        unresolvedIds.map((id) => fetchSingleLocation(id))
+      )
+      singles.forEach((r, i) => {
+        if (r.status === 'fulfilled' && r.value) {
+          const l = r.value
+          const lid = l._id || l.id || unresolvedIds[i]
+          map[lid] = l
+        }
+      })
+    }
+
+    setLocationMap(map)
+  }
+
+  // ── On Mount ──────────────────────────────────────────────────────────────
   useEffect(() => {
-    fetchVenues()
-    fetchLocations()
+    const init = async () => {
+      const [venueList, academyList] = await Promise.all([fetchVenues(), fetchAcademies()])
+      await buildLocationMap(academyList, venueList)
+    }
+    init()
   }, [])
+
+  // ── Refresh venues + re-resolve locations ─────────────────────────────────
+  const refreshVenuesAndLocations = async () => {
+    const venueList = await fetchVenues()
+    setAcademies((currentAcademies) => {
+      buildLocationMap(currentAcademies, venueList)
+      return currentAcademies
+    })
+  }
 
   // ── Delete ────────────────────────────────────────────────────────────────
   const handleDeleteConfirm = async () => {
@@ -446,7 +627,7 @@ export default function Venues() {
       await deleteVenue(deleteTarget.id)
       toast('Venue deleted!', 'success')
       setDeleteTarget(null)
-      fetchVenues()
+      refreshVenuesAndLocations()
     } catch (err) {
       toast(err.message || 'Delete failed', 'error')
     } finally {
@@ -461,7 +642,7 @@ export default function Venues() {
     try {
       await toggleVenueStatus(id)
       toast(`Marked as ${venue.isActive ? 'Inactive' : 'Active'}`, 'success')
-      fetchVenues()
+      refreshVenuesAndLocations()
     } catch {
       try {
         const fd = new FormData()
@@ -471,7 +652,7 @@ export default function Venues() {
         fd.append('isActive',    String(!venue.isActive))
         await updateVenue(id, fd)
         toast(`Marked as ${venue.isActive ? 'Inactive' : 'Active'}`, 'success')
-        fetchVenues()
+        refreshVenuesAndLocations()
       } catch (err2) {
         toast(err2.message || 'Toggle failed', 'error')
       }
@@ -486,10 +667,19 @@ export default function Venues() {
     v.description?.toLowerCase().includes(search.toLowerCase())
   )
 
-  // ── Location name helper ──────────────────────────────────────────────────
-  const getLocationName = (locationId) => {
-    const loc = locations.find((l) => (l._id || l.id) === locationId)
-    return loc ? (loc.name || loc.city || loc.state || locationId) : locationId || '—'
+  // ── Resolve locationId → label ────────────────────────────────────────────
+  const getLocationDisplay = (locationId) => {
+    if (!locationId) return '—'
+    const loc = locationMap[locationId]
+    return loc ? locationLabel(loc) : locationId
+  }
+
+  // ── Resolve academyId → academy name ─────────────────────────────────────
+  // ✅ FIX: use a.academy.name (nested), not a.name (user's name)
+  const getAcademyName = (academyId) => {
+    if (!academyId) return '—'
+    const a = academies.find((x) => x.academyId === academyId)
+    return a ? (a.academy?.name || a.name || a.email || academyId) : academyId
   }
 
   // ──────────────────────────────────────────────────────────────────────────
@@ -507,17 +697,18 @@ export default function Venues() {
 
       <ViewModal
         venue={viewVenue}
-        locations={locations}
+        locationMap={locationMap}
+        academies={academies}
         onClose={() => setViewVenue(null)}
       />
 
       <VenueFormModal
         show={showForm}
         editVenue={editVenue}
-        locations={locations}
-        locationsLoading={locationsLoading}
+        academies={academies}
+        academiesLoading={academiesLoading}
         onClose={() => { setShowForm(false); setEditVenue(null) }}
-        onSaved={fetchVenues}
+        onSaved={refreshVenuesAndLocations}
         toast={toast}
       />
 
@@ -551,7 +742,7 @@ export default function Venues() {
         <table className="w-full text-sm">
           <thead className="bg-neutral-50 border-b border-neutral-200">
             <tr>
-              {['#', 'Image', 'Name', 'Location', 'Description', 'Status', 'Created', 'Actions'].map((h) => (
+              {['#',"Id", 'Image', 'Name', 'Academy', 'Location', 'Description', 'Status', 'Created', 'Actions'].map((h) => (
                 <th key={h} className="text-left px-5 py-3 text-neutral-400 font-medium text-xs">
                   {h}
                 </th>
@@ -561,7 +752,7 @@ export default function Venues() {
           <tbody>
             {loading ? (
               <tr>
-                <td colSpan={8} className="text-center py-12">
+                <td colSpan={9} className="text-center py-12">
                   <div className="flex flex-col items-center gap-2 text-neutral-400">
                     <div className="w-6 h-6 border-2 border-purple-300 border-t-purple-600 rounded-full animate-spin" />
                     <span className="text-sm">Loading venues...</span>
@@ -570,7 +761,7 @@ export default function Venues() {
               </tr>
             ) : filtered.length === 0 ? (
               <tr>
-                <td colSpan={8} className="text-center py-12 text-neutral-400 text-sm">
+                <td colSpan={9} className="text-center py-12 text-neutral-400 text-sm">
                   {search ? 'No venues match your search.' : 'No venues yet. Click "+ Add Venue" to create one!'}
                 </td>
               </tr>
@@ -580,8 +771,15 @@ export default function Venues() {
                 return (
                   <tr key={id} className="border-b border-neutral-100 hover:bg-neutral-50 transition-colors">
 
+
                     {/* # */}
                     <td className="px-5 py-3 text-neutral-400 text-xs">{i + 1}</td>
+
+                     <td className="px-5 py-3">
+                      <span className="text-xs bg-blue-50 text-blue-600 px-2 py-0.5 rounded-full whitespace-nowrap">
+                       {v._id.slice(-6).toUpperCase()}
+                      </span>
+                    </td>
 
                     {/* Image */}
                     <td className="px-5 py-3">
@@ -602,15 +800,18 @@ export default function Venues() {
                     {/* Name */}
                     <td className="px-5 py-3 font-medium text-black capitalize">{v.name}</td>
 
-                    {/* Location — resolved from API list */}
+                    {/* Academy — ✅ resolved via a.academy.name */}
+                   
+
+                    {/* Location — ✅ resolved from locationMap */}
                     <td className="px-5 py-3">
-                      <span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full">
-                        {getLocationName(v.locationId)}
+                      <span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full capitalize">
+                        {getLocationDisplay(v.locationId)}
                       </span>
                     </td>
 
                     {/* Description */}
-                    <td className="px-5 py-3 text-neutral-500 text-xs max-w-[180px]">
+                    <td className="px-5 py-3 text-neutral-500 text-xs max-w-[160px]">
                       <span className="line-clamp-1">{v.description || '—'}</span>
                     </td>
 

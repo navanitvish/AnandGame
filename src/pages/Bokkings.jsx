@@ -747,8 +747,8 @@ export default function Bookings() {
               <table className="w-full text-sm min-w-[960px]">
                 <thead className="bg-neutral-50 border-b border-neutral-200">
                   <tr>
-                    {['#', 'User', 'Venue / Ground', 'Sport / Category', 'Time Slot', 'Date', 'Duration', 'Status', 'Payment', 'Actions'].map(h => (
-                      <th key={h} className="text-left px-4 py-3 text-[11px] font-bold text-neutral-400 uppercase tracking-wide whitespace-nowrap">{h}</th>
+                    {['Booking_id', 'User', 'Venue / Ground', 'Sport / Category', 'Time Slot', 'Date', 'Duration', 'Status', 'Payment', 'Actions'].map(h => (
+                      <th key={h} className="text-left px-4 py-3 text-[11px] font-bold text-black uppercase tracking-wide whitespace-nowrap">{h}</th>
                     ))}
                   </tr>
                 </thead>
@@ -759,8 +759,8 @@ export default function Bookings() {
                       <tr key={b._id} className="border-b border-neutral-100 hover:bg-purple-50/40 transition-colors">
 
                         {/* # */}
-                        <td className="px-4 py-3 font-mono text-xs text-neutral-400 whitespace-nowrap">
-                          #{b._id.slice(-8).toUpperCase()}
+                        <td className="px-4 py-3  font-mono text-xs text-black underline whitespace-nowrap">
+                          {b._id.slice(-6).toUpperCase()}
                         </td>
 
                         {/* User */}

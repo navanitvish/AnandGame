@@ -302,6 +302,9 @@ export const deletePolicy     = (id)       => api.delete(`/privacy-and-policies/
 
  export const getLocations = () => api.get('/locations/getAll')   // ✅ FIXED
 
+//  export const getLocation = (userId) =>
+//   api.get('/locations/getAll', { params: { userId } })
+
  export const locationsAPI = {
   createLocation: (locationData) => api.post('/locations/create', locationData,
      { 
@@ -372,5 +375,13 @@ export const getAcademyManagers = async () => {
   })
   return res.data
 }
+
+export const createLocation = (locationData) =>
+  api.post('/locations/create', locationData, {
+    headers: { 'Content-Type': 'application/json' },
+  })
+
+  export const getLocation = (userId) =>
+  api.get(`/locations/getAll?userId=${userId}`)
 
 export default api

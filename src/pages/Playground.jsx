@@ -209,7 +209,7 @@ function GroundFormModal({ show, editGround, venues, sports, categories, academy
         venueId:              getId(editGround.venueId)    || '',
         sportId:              getId(editGround.sportId)    || '',
         categoryId:           getId(editGround.categoryId) || '',
-        academyId:            getId(editGround.academyId)  || '',
+        academyId:            getId(editGround.academyId)  || '',   // ✅ pre-fill for display only
         name:                 editGround.name                 || '',
         description:          editGround.description          || '',
         coach:                editGround.coach                || '',
@@ -240,7 +240,8 @@ function GroundFormModal({ show, editGround, venues, sports, categories, academy
     if (!form.venueId)     e.venueId    = 'Venue required'
     if (!form.sportId)     e.sportId    = 'Sport required'
     if (!form.categoryId)  e.categoryId = 'Category required'
-    if (!form.academyId)   e.academyId  = 'Academy required'
+    // Only require academyId on create
+    if (!editGround && !form.academyId) e.academyId = 'Academy required'
     if (!form.name.trim()) e.name       = 'Name required'
     return e
   }
@@ -251,12 +252,12 @@ function GroundFormModal({ show, editGround, venues, sports, categories, academy
 
     const fd = new FormData()
 
-    // ── Full payload — every field sent to the API ────────────────────────────
+    // ── Payload — academyId only sent on CREATE, not on EDIT ─────────────────
     const payload = {
       venueId:              form.venueId,
       sportId:              form.sportId,
       categoryId:           form.categoryId,
-      academyId:            form.academyId,        // ← "academyId" key
+      ...(editGround ? {} : { academyId: form.academyId }),  // ✅ exclude on edit
       name:                 form.name.trim(),
       description:          form.description.trim(),
       coach:                form.coach.trim(),
@@ -274,16 +275,13 @@ function GroundFormModal({ show, editGround, venues, sports, categories, academy
       isActive:             form.isActive,
     }
 
-    // ── Open browser DevTools → Console to inspect before the request fires ──
     console.table(payload)
 
-    // Append all non-empty values
     Object.entries(payload).forEach(([k, v]) => {
       if (v !== '' && v !== null && v !== undefined) fd.append(k, v)
     })
     if (file) fd.append('image', file)
 
-    // Confirm what's actually in FormData
     console.log('📦 FormData keys being sent:')
     for (const [k, v] of fd.entries()) console.log(`   ${k} →`, v)
 
@@ -298,7 +296,6 @@ function GroundFormModal({ show, editGround, venues, sports, categories, academy
       }
       onSaved(); onClose()
     } catch (err) {
-      // Show the real backend message if available
       const msg = err?.response?.data?.message || err.message || 'Something went wrong'
       toast(msg, 'error')
       console.error('❌ API error:', err?.response?.data || err)
@@ -319,12 +316,12 @@ function GroundFormModal({ show, editGround, venues, sports, categories, academy
     </div>
   )
 
-  const DropDown = ({ label, k, options, ph = 'Select…' }) => (
+  const DropDown = ({ label, k, options, ph = 'Select…', disabled = false }) => (
     <div>
       <label className={labelCls}>{label}</label>
-      <select value={form[k]}
+      <select value={form[k]} disabled={disabled}
         onChange={e => { set(k, e.target.value); setErrors(er => ({ ...er, [k]: '' })) }}
-        className={`${inputCls} ${errors[k] ? 'border-red-300' : ''}`}>
+        className={`${inputCls} ${errors[k] ? 'border-red-300' : ''} ${disabled ? 'opacity-60 cursor-not-allowed bg-gray-50' : ''}`}>
         <option value="">{ph}</option>
         {options.map(o => (
           <option key={o._id || o.id} value={o._id || o.id}>
@@ -333,6 +330,7 @@ function GroundFormModal({ show, editGround, venues, sports, categories, academy
         ))}
       </select>
       {errors[k] && <p className="text-xs text-red-500 mt-1">{errors[k]}</p>}
+      {disabled && <p className="text-[10px] text-gray-400 mt-1">Academy cannot be changed after creation</p>}
     </div>
   )
 
@@ -346,14 +344,13 @@ function GroundFormModal({ show, editGround, venues, sports, categories, academy
     </div>
   )
 
-  // Normalise academy managers → { _id, name } regardless of backend shape
-  // Priority: name → fullName → username → email → raw _id
+  // Normalise academy managers → { _id, name }
   const academyOptions = academyManagers
     .map(u => ({
       _id:  u.academy._id  || u.academy.id  || '',
-      name: u.name || u.fullName || u.username || u.email || u._id || u.id || 'Unknown',
+      name: u.academy?.name || u.fullName || u.username || u.email || u._id || u.id || 'Unknown',
     }))
-    .filter(o => o._id)   // drop any entry missing an id
+    .filter(o => o._id)
 
   return (
     <div className="fixed inset-0 bg-black/40 z-40 flex items-center justify-center backdrop-blur-sm p-4">
@@ -384,7 +381,14 @@ function GroundFormModal({ show, editGround, venues, sports, categories, academy
               <DropDown label="Venue *"    k="venueId"    options={venues}         ph="Select venue" />
               <DropDown label="Sport *"    k="sportId"    options={sports}         ph="Select sport" />
               <DropDown label="Category *" k="categoryId" options={categories}     ph="Select category" />
-              <DropDown label="Academy *"  k="academyId"  options={academyOptions} ph="Select academy" />
+              {/* ✅ Academy: required on create, read-only/disabled on edit */}
+              <DropDown
+                label={editGround ? 'Academy (locked)' : 'Academy *'}
+                k="academyId"
+                options={academyOptions}
+                ph="Select academy"
+                disabled={!!editGround}
+              />
             </div>
           </div>
 
@@ -612,9 +616,9 @@ export default function SportGrounds() {
             <div className="w-9 h-9 bg-purple-600 rounded-xl flex items-center justify-center">
               <MapPin className="h-4 w-4 text-white" />
             </div>
-            <h1 className="text-2xl font-bold text-black">Sport Grounds</h1>
+            <h1 className="text-2xl font-bold text-black"> Join Games</h1>
           </div>
-          <p className="text-neutral-500 text-sm">Manage all sport grounds — venue, sport & category linked</p>
+          <p className="text-neutral-500 text-sm">Join Games sport & category linked</p>
         </div>
         <div className="flex gap-2">
           <button onClick={fetchAll}

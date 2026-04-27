@@ -2,8 +2,8 @@ import { useState, useEffect, useRef } from 'react'
 import {
   MapPin, Plus, Trash2, Search, LayoutGrid, List,
   Map, Edit, Eye, X, AlertCircle,
-  RefreshCw, Clock, Shield, Layers, DollarSign,
-  Image as ImageIcon, Upload, CheckCircle
+  RefreshCw, Clock, Shield, Layers,
+  Image as ImageIcon, Upload, CheckCircle, ChevronDown
 } from 'lucide-react'
 import api from '../api/api'
 
@@ -23,13 +23,31 @@ const getAcademyManagers = async () => {
 // ── Helpers ───────────────────────────────────────────────────────────────────
 const toList  = (res) => {
   if (Array.isArray(res))             return res
+  if (Array.isArray(res?.data?.data?.data)) return res.data.data.data
   if (Array.isArray(res?.data?.data)) return res.data.data
   if (Array.isArray(res?.data))       return res.data
   return []
 }
 const getId   = (f) => (typeof f === 'object' && f !== null ? f?._id  : f) || ''
 const getName = (f) => (typeof f === 'object' && f !== null ? f?.name : f) || '—'
-const getImg  = (f) => (typeof f === 'object' && f !== null ? f?.image : null) || null
+
+const getBannerUrl = (b) => {
+  if (!b) return null
+  if (typeof b === 'string') return b
+  return b.image || null
+}
+
+const getGroundBanners = (g) => {
+  if (!Array.isArray(g.banners) || g.banners.length === 0) return []
+  return g.banners.map(getBannerUrl).filter(Boolean)
+}
+
+const getGroundSports = (g) => {
+  if (Array.isArray(g.sports) && g.sports.length > 0) return g.sports
+  if (Array.isArray(g.sportId)) return g.sportId
+  if (g.sportId) return [g.sportId]
+  return []
+}
 
 // ── Styles ────────────────────────────────────────────────────────────────────
 const inputCls =
@@ -38,27 +56,104 @@ const inputCls =
   'focus:ring-purple-400/20 transition-all bg-white'
 const labelCls = 'block text-xs font-medium text-gray-500 mb-1.5'
 
-const GROUND_TYPES = ['cricket', 'football', 'basketball', 'tennis', 'badminton', 'volleyball', 'hockey', 'other']
 const STATUS_OPTS  = ['available', 'unavailable', 'maintenance']
 
 const emptyForm = {
-  venueId: '', sportId: '', academyId: '', name: '', description: '',
-  type: '', openingTime: '', closingTime: '',
-  pricePerHour: '', status: 'available', isActive: 'true',
+  venueId: '', sportIds: [], academyId: '', name: '', description: '',
+  openingTime: '', closingTime: '',
+  status: 'available', isActive: 'true',
 }
 
-// ── Form Sub-components (OUTSIDE modal to prevent remount on re-render) ───────
+// ── Multi-Select Sports Dropdown ───────────────────────────────────────────────
+function MultiSportSelect({ sports, selected, onChange, error }) {
+  const [open, setOpen] = useState(false)
+  const ref = useRef(null)
+
+  useEffect(() => {
+    const handler = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false) }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [])
+
+  const toggle = (id) => {
+    onChange(selected.includes(id) ? selected.filter(s => s !== id) : [...selected, id])
+  }
+
+  const selectedNames = sports
+    .filter(s => selected.includes(s._id || s.id))
+    .map(s => s.name)
+
+  return (
+    <div ref={ref} className="relative">
+      <label className={labelCls}>Sports *</label>
+      <button
+        type="button"
+        onClick={() => setOpen(o => !o)}
+        className={`${inputCls} flex items-center justify-between text-left ${error ? 'border-red-300 focus:border-red-400 focus:ring-red-400/20' : ''}`}
+      >
+        <span className={selectedNames.length ? 'text-gray-900' : 'text-gray-400'}>
+          {selectedNames.length
+            ? selectedNames.length === 1
+              ? selectedNames[0]
+              : `${selectedNames.length} sports selected`
+            : 'Select sports…'}
+        </span>
+        <ChevronDown className={`h-4 w-4 text-gray-400 shrink-0 transition-transform ${open ? 'rotate-180' : ''}`} />
+      </button>
+
+      {selectedNames.length > 0 && (
+        <div className="flex flex-wrap gap-1.5 mt-2">
+          {sports.filter(s => selected.includes(s._id || s.id)).map(s => (
+            <span key={s._id || s.id}
+              className="flex items-center gap-1 text-[11px] bg-purple-50 text-purple-700 border border-purple-200 px-2 py-0.5 rounded-full">
+              {s.name}
+              <button type="button" onClick={(e) => { e.stopPropagation(); toggle(s._id || s.id) }}
+                className="hover:text-red-500 transition-colors">
+                <X className="h-3 w-3" />
+              </button>
+            </span>
+          ))}
+        </div>
+      )}
+
+      {open && (
+        <div className="absolute z-30 top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-xl shadow-xl overflow-hidden max-h-52 overflow-y-auto">
+          {sports.length === 0 ? (
+            <p className="text-xs text-gray-400 text-center py-4">No sports available</p>
+          ) : sports.map(s => {
+            const id = s._id || s.id
+            const checked = selected.includes(id)
+            return (
+              <button key={id} type="button" onClick={() => toggle(id)}
+                className={`w-full flex items-center gap-2.5 px-3 py-2.5 text-sm text-left transition-colors
+                  ${checked ? 'bg-purple-50 text-purple-700' : 'text-gray-700 hover:bg-gray-50'}`}>
+                <span className={`w-4 h-4 rounded border flex items-center justify-center shrink-0 transition-colors
+                  ${checked ? 'bg-purple-600 border-purple-600' : 'border-gray-300'}`}>
+                  {checked && <CheckCircle className="h-3 w-3 text-white" />}
+                </span>
+                {s.image && (
+                  <img src={s.image} alt="" className="w-5 h-5 rounded-full object-cover"
+                    onError={e => e.target.style.display = 'none'} />
+                )}
+                {s.name}
+              </button>
+            )
+          })}
+        </div>
+      )}
+      {error && <p className="text-xs text-red-500 mt-1">{error}</p>}
+    </div>
+  )
+}
+
+// ── Form Sub-components ───────────────────────────────────────────────────────
 function Field({ label, k, type = 'text', ph = '', required = false, form, set, errors, setErrors }) {
   return (
     <div>
       <label className={labelCls}>{label}{required && ' *'}</label>
-      <input
-        type={type}
-        placeholder={ph}
-        value={form[k]}
+      <input type={type} placeholder={ph} value={form[k]}
         onChange={e => { set(k, e.target.value); setErrors(er => ({ ...er, [k]: '' })) }}
-        className={`${inputCls} ${errors[k] ? 'border-red-300 focus:border-red-400 focus:ring-red-400/20' : ''}`}
-      />
+        className={`${inputCls} ${errors[k] ? 'border-red-300 focus:border-red-400 focus:ring-red-400/20' : ''}`} />
       {errors[k] && <p className="text-xs text-red-500 mt-1">{errors[k]}</p>}
     </div>
   )
@@ -68,11 +163,9 @@ function DropDown({ label, k, options, ph = 'Select…', required = false, form,
   return (
     <div>
       <label className={labelCls}>{label}{required && ' *'}</label>
-      <select
-        value={form[k]}
+      <select value={form[k]}
         onChange={e => { set(k, e.target.value); setErrors(er => ({ ...er, [k]: '' })) }}
-        className={`${inputCls} ${errors[k] ? 'border-red-300 focus:border-red-400 focus:ring-red-400/20' : ''}`}
-      >
+        className={`${inputCls} ${errors[k] ? 'border-red-300 focus:border-red-400 focus:ring-red-400/20' : ''}`}>
         <option value="">{ph}</option>
         {options.map(o => (
           <option key={o._id || o.id} value={o._id || o.id}>{o.name}</option>
@@ -87,11 +180,9 @@ function SelectField({ label, k, opts, ph = 'Select…', required = false, form,
   return (
     <div>
       <label className={labelCls}>{label}{required && ' *'}</label>
-      <select
-        value={form[k]}
+      <select value={form[k]}
         onChange={e => { set(k, e.target.value); setErrors(er => ({ ...er, [k]: '' })) }}
-        className={`${inputCls} ${errors[k] ? 'border-red-300' : ''}`}
-      >
+        className={`${inputCls} ${errors[k] ? 'border-red-300' : ''}`}>
         <option value="">{ph}</option>
         {opts.map(o => (
           <option key={o} value={o}>{o.charAt(0).toUpperCase() + o.slice(1)}</option>
@@ -112,7 +203,6 @@ function useToast() {
   }
   return { toasts, show }
 }
-
 function ToastContainer({ toasts }) {
   return (
     <div className="fixed top-5 right-5 z-50 flex flex-col gap-2 pointer-events-none">
@@ -158,18 +248,52 @@ function ConfirmModal({ show, name, loading, onConfirm, onCancel }) {
   )
 }
 
+// ── Sports Tags display ───────────────────────────────────────────────────────
+function SportsTags({ sports, max = 3 }) {
+  if (!sports || sports.length === 0) return <span className="text-xs text-neutral-400">—</span>
+  const visible = sports.slice(0, max)
+  const rest    = sports.length - max
+
+  return (
+    <div className="flex flex-wrap gap-1">
+      {visible.map((s, idx) => {
+        const name  = getName(s)
+        const image = typeof s === 'object' ? s.image : null
+        return (
+          <span key={s._id || idx}
+            className="inline-flex items-center gap-1 text-[10px] text-purple-700 bg-purple-50 border border-purple-100 px-1.5 py-0.5 rounded-full whitespace-nowrap">
+            {image && (
+              <img src={image} alt="" className="w-3 h-3 rounded-full object-cover"
+                onError={e => e.target.style.display = 'none'} />
+            )}
+            {name}
+          </span>
+        )
+      })}
+      {rest > 0 && (
+        <span className="text-[10px] text-neutral-400 bg-neutral-100 px-1.5 py-0.5 rounded-full">
+          +{rest}
+        </span>
+      )}
+    </div>
+  )
+}
+
 // ── View Modal ────────────────────────────────────────────────────────────────
 function ViewModal({ ground, onClose, onEdit }) {
   if (!ground) return null
+
+  const sports  = getGroundSports(ground)
+  const banners = getGroundBanners(ground)
+
   const rows = [
     { label: 'Name',            value: ground.name },
     { label: 'Venue',           value: getName(ground.venueId) },
-    { label: 'Sport',           value: getName(ground.sportId) },
-    { label: 'Academy Manager', value: getName(ground.academyManagerId) },
-    { label: 'Type',            value: ground.type || '—' },
+    { label: 'Sports',          value: sports.map(s => getName(s)).join(', ') || '—' },
+    { label: 'Academy',         value: getName(ground.academyId) },
     { label: 'Opening Time',    value: ground.openingTime || '—' },
     { label: 'Closing Time',    value: ground.closingTime  || '—' },
-    { label: 'Price/Hour',      value: ground.pricePerHour ? `₹${ground.pricePerHour}` : '—' },
+    { label: 'No. of Courts',   value: ground.noOfCourts ?? '—' },
     { label: 'Status',          value: ground.status || '—' },
     { label: 'Active',          value: ground.isActive ? 'Yes' : 'No' },
     { label: 'Created',         value: ground.createdAt
@@ -202,12 +326,12 @@ function ViewModal({ ground, onClose, onEdit }) {
           </div>
         </div>
 
-        {ground.banners?.length > 0 && (
+        {banners.length > 0 && (
           <div className="px-5 pt-4">
             <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-2">Banners</p>
             <div className="flex gap-2 overflow-x-auto pb-1">
-              {ground.banners.map((b, i) => (
-                <img key={i} src={b} alt={`banner-${i}`}
+              {banners.map((url, i) => (
+                <img key={i} src={url} alt={`banner-${i}`}
                   className="h-24 w-36 object-cover rounded-xl border border-gray-200 shrink-0"
                   onError={e => e.target.style.display = 'none'} />
               ))}
@@ -215,8 +339,25 @@ function ViewModal({ ground, onClose, onEdit }) {
           </div>
         )}
 
+        {sports.length > 0 && (
+          <div className="px-5 pt-4">
+            <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-2">Sports</p>
+            <div className="flex flex-wrap gap-2">
+              {sports.map((s, i) => (
+                <div key={s._id || i} className="flex items-center gap-1.5 bg-purple-50 border border-purple-100 px-3 py-1.5 rounded-xl">
+                  {s.image && (
+                    <img src={s.image} alt="" className="w-5 h-5 rounded-full object-cover"
+                      onError={e => e.target.style.display = 'none'} />
+                  )}
+                  <span className="text-xs font-medium text-purple-700 capitalize">{s.name}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
         <div className="p-5 grid grid-cols-2 gap-2">
-          {rows.map(({ label, value }) => (
+          {rows.filter(r => r.label !== 'Sports').map(({ label, value }) => (
             <div key={label} className="bg-gray-50 rounded-xl p-3 border border-gray-100">
               <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-1">{label}</p>
               <p className="text-sm font-medium text-gray-800 truncate">{value}</p>
@@ -246,7 +387,6 @@ function BannerUpload({ banners, setBanners, existingBanners }) {
     setBanners(prev => [...prev, ...files])
     e.target.value = ''
   }
-
   const removeNew = (index) => setBanners(prev => prev.filter((_, i) => i !== index))
 
   return (
@@ -257,15 +397,18 @@ function BannerUpload({ banners, setBanners, existingBanners }) {
 
       {existingBanners?.length > 0 && (
         <div className="flex flex-wrap gap-2 mb-3">
-          {existingBanners.map((b, i) => (
-            <div key={i} className="relative group">
-              <img src={b} alt="" className="h-20 w-28 object-cover rounded-xl border border-gray-200"
-                onError={e => e.target.style.display = 'none'} />
-              <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 rounded-xl transition-all flex items-center justify-center">
-                <span className="text-[9px] text-white font-medium">Existing</span>
+          {existingBanners.map((b, i) => {
+            const url = getBannerUrl(b)
+            return url ? (
+              <div key={i} className="relative group">
+                <img src={url} alt="" className="h-20 w-28 object-cover rounded-xl border border-gray-200"
+                  onError={e => e.target.style.display = 'none'} />
+                <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 rounded-xl transition-all flex items-center justify-center">
+                  <span className="text-[9px] text-white font-medium">Existing</span>
+                </div>
               </div>
-            </div>
-          ))}
+            ) : null
+          })}
         </div>
       )}
 
@@ -317,16 +460,19 @@ function GroundFormModal({ show, editGround, venues, sports, academyOptions, onC
 
   useEffect(() => {
     if (editGround) {
+      const rawSports = getGroundSports(editGround)
+      const sportIds  = rawSports
+        .map(s => (typeof s === 'object' ? s._id : s))
+        .filter(Boolean)
+
       setForm({
-        venueId:      getId(editGround.venueId)          || '',
-        sportId:      getId(editGround.sportId)          || '',
-        academyId:    getId(editGround.academyManagerId) || '',
+        venueId:      getId(editGround.venueId)  || '',
+        sportIds,
+        academyId:    getId(editGround.academyId) || '',
         name:         editGround.name         || '',
         description:  editGround.description  || '',
-        type:         editGround.type         || '',
         openingTime:  editGround.openingTime  || '',
         closingTime:  editGround.closingTime  || '',
-        pricePerHour: editGround.pricePerHour ?? '',
         status:       editGround.status       || 'available',
         isActive:     String(editGround.isActive ?? true),
       })
@@ -341,13 +487,11 @@ function GroundFormModal({ show, editGround, venues, sports, academyOptions, onC
 
   const validate = () => {
     const e = {}
-    if (!form.venueId)     e.venueId     = 'Venue is required'
-    if (!form.sportId)     e.sportId     = 'Sport is required'
-    if (!form.name.trim()) e.name        = 'Name is required'
-    if (!form.type)        e.type        = 'Type is required'
-    if (!form.openingTime) e.openingTime = 'Opening time is required'
-    if (!form.closingTime) e.closingTime = 'Closing time is required'
-    if (!form.pricePerHour || isNaN(Number(form.pricePerHour))) e.pricePerHour = 'Valid price required'
+    // venueId is optional — no validation needed
+    if (!form.sportIds?.length)     e.sportIds    = 'Select at least one sport'
+    if (!form.name.trim())          e.name        = 'Name is required'
+    if (!form.openingTime)          e.openingTime = 'Opening time is required'
+    if (!form.closingTime)          e.closingTime = 'Closing time is required'
     return e
   }
 
@@ -356,16 +500,13 @@ function GroundFormModal({ show, editGround, venues, sports, academyOptions, onC
     if (Object.keys(e).length) { setErrors(e); return }
 
     const fd = new FormData()
-    fd.append('venueId',      form.venueId)
-    fd.append('sportId',      form.sportId)
-    // academyId only on CREATE — backend rejects it on UPDATE
-    if (!editGround && form.academyId) fd.append('academyId', form.academyId)
+    if (form.venueId) fd.append('venueId', form.venueId)
+    form.sportIds.forEach(id => fd.append('sports', id))
+    if (form.academyId) fd.append('academyId', form.academyId)
     fd.append('name',         form.name.trim())
     fd.append('description',  form.description.trim())
-    fd.append('type',         form.type)
     fd.append('openingTime',  form.openingTime)
     fd.append('closingTime',  form.closingTime)
-    fd.append('pricePerHour', form.pricePerHour)
     fd.append('status',       form.status)
     fd.append('isActive',     form.isActive)
     banners.forEach(f => fd.append('banners', f))
@@ -388,22 +529,17 @@ function GroundFormModal({ show, editGround, venues, sports, academyOptions, onC
   }
 
   if (!show) return null
-
-  // shared props passed down to avoid closure-remount issues
   const fieldProps = { form, set, errors, setErrors }
 
   return (
     <div className="fixed inset-0 bg-black/40 z-40 flex items-center justify-center backdrop-blur-sm p-4">
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[92vh] overflow-y-auto">
 
-        {/* Header */}
         <div className="sticky top-0 bg-white flex items-center justify-between px-6 py-4 border-b border-gray-100 z-10">
           <div className="flex items-center gap-3">
             <div className={`w-8 h-8 rounded-xl flex items-center justify-center
               ${editGround ? 'bg-amber-50 border border-amber-200' : 'bg-purple-50 border border-purple-200'}`}>
-              {editGround
-                ? <Edit className="h-4 w-4 text-amber-500" />
-                : <Plus className="h-4 w-4 text-purple-600" />}
+              {editGround ? <Edit className="h-4 w-4 text-amber-500" /> : <Plus className="h-4 w-4 text-purple-600" />}
             </div>
             <div>
               <h2 className="text-sm font-bold text-gray-900">{editGround ? 'Edit Ground' : 'Add New Ground'}</h2>
@@ -420,13 +556,34 @@ function GroundFormModal({ show, editGround, venues, sports, academyOptions, onC
 
           {/* Section 1: Linked References */}
           <div>
-            <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-3">Linked References *</p>
+            <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-3">Linked References</p>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <DropDown label="Venue"   k="venueId" options={venues} ph="Select venue" required {...fieldProps} />
-              <DropDown label="Sport"   k="sportId" options={sports} ph="Select sport" required {...fieldProps} />
+
+              {/* Venue — optional */}
+              <DropDown
+                label="Venue"
+                k="venueId"
+                options={venues}
+                ph="Select venue (optional)"
+                {...fieldProps}
+              />
+
               <div className="sm:col-span-2">
-                <DropDown label="Academy Manager" k="academyId" options={academyOptions} ph="Select academy manager" {...fieldProps} />
+                <MultiSportSelect sports={sports} selected={form.sportIds}
+                  onChange={(ids) => { set('sportIds', ids); setErrors(er => ({ ...er, sportIds: '' })) }}
+                  error={errors.sportIds} />
               </div>
+
+              <div className="sm:col-span-2">
+                <label className={labelCls}>Academy</label>
+                <select value={form.academyId} onChange={e => set('academyId', e.target.value)} className={inputCls}>
+                  <option value="">Academy (optional)</option>
+                  {academyOptions.map(o => (
+                    <option key={o._id} value={o._id}>{o.name}</option>
+                  ))}
+                </select>
+              </div>
+
             </div>
           </div>
 
@@ -434,8 +591,9 @@ function GroundFormModal({ show, editGround, venues, sports, academyOptions, onC
           <div>
             <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-3">Basic Info</p>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <Field label="Ground Name" k="name" ph="e.g. Cricket Ground 1" required {...fieldProps} />
-              <SelectField label="Type"  k="type" opts={GROUND_TYPES} ph="Select type" required {...fieldProps} />
+              <div className="sm:col-span-2">
+                <Field label="Ground Name" k="name" ph="e.g. Cricket Ground 1" required {...fieldProps} />
+              </div>
               <div className="sm:col-span-2">
                 <label className={labelCls}>Description</label>
                 <textarea rows={2} value={form.description}
@@ -446,25 +604,12 @@ function GroundFormModal({ show, editGround, venues, sports, academyOptions, onC
             </div>
           </div>
 
-          {/* Section 3: Timing & Price */}
+          {/* Section 3: Timing */}
           <div>
-            <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-3">Timing & Pricing</p>
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+            <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-3">Timing</p>
+            <div className="grid grid-cols-2 gap-3">
               <Field label="Opening Time" k="openingTime" type="time" required {...fieldProps} />
               <Field label="Closing Time" k="closingTime" type="time" required {...fieldProps} />
-              <div>
-                <label className={labelCls}>Price Per Hour *</label>
-                <div className="relative">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-gray-400 font-medium">₹</span>
-                  <input
-                    type="number" min="0" placeholder="1000"
-                    value={form.pricePerHour}
-                    onChange={e => { set('pricePerHour', e.target.value); setErrors(er => ({ ...er, pricePerHour: '' })) }}
-                    className={`${inputCls} pl-7 ${errors.pricePerHour ? 'border-red-300' : ''}`}
-                  />
-                </div>
-                {errors.pricePerHour && <p className="text-xs text-red-500 mt-1">{errors.pricePerHour}</p>}
-              </div>
             </div>
           </div>
 
@@ -485,10 +630,8 @@ function GroundFormModal({ show, editGround, venues, sports, academyOptions, onC
 
           {/* Section 5: Banners */}
           <BannerUpload banners={banners} setBanners={setBanners} existingBanners={editGround?.banners} />
-
         </div>
 
-        {/* Footer */}
         <div className="sticky bottom-0 bg-white px-6 py-4 border-t border-gray-100 flex gap-3">
           <button onClick={onClose} disabled={loading}
             className="flex-1 py-2.5 text-sm rounded-xl border border-gray-200 text-gray-600 hover:bg-gray-50 disabled:opacity-50">
@@ -551,7 +694,7 @@ export default function SportGrounds() {
   const academyOptions = academyManagers
     .map(u => ({
       _id:  u.academyId || '',
-      name: u.academy?.name || u.name || u.fullName || u.username || u.email || u._id || 'Unknown',
+      name: u.academy?.name || u.academy?.name || u.academy?.name || u.email || u._id || 'Unknown',
     }))
     .filter(o => o._id)
 
@@ -585,12 +728,12 @@ export default function SportGrounds() {
 
   const filtered = grounds.filter(g => {
     const q = search.toLowerCase()
+    const sportsStr = getGroundSports(g).map(s => getName(s)).join(' ')
     return (
       g.name?.toLowerCase().includes(q) ||
-      g.type?.toLowerCase().includes(q) ||
       g.status?.toLowerCase().includes(q) ||
       getName(g.venueId).toLowerCase().includes(q) ||
-      getName(g.sportId).toLowerCase().includes(q)
+      sportsStr.toLowerCase().includes(q)
     )
   })
 
@@ -704,111 +847,118 @@ export default function SportGrounds() {
       {/* TABLE VIEW */}
       {!loading && viewMode === 'table' && (
         <div className="bg-white rounded-2xl border border-neutral-200 overflow-hidden">
-          <table className="w-full text-sm">
-            <thead className="bg-neutral-50 border-b border-neutral-200">
-              <tr>
-                {['#','Banner','Name','Venue','Sport','Type','Timing','Price/hr','Status','Active','Actions'].map(h => (
-                  <th key={h} className="text-left px-4 py-3 text-[11px] text-neutral-400 font-semibold whitespace-nowrap">{h}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {filtered.length === 0 ? (
-                <tr><td colSpan={11} className="text-center py-14 text-neutral-400 text-sm">
-                  <MapPin className="h-7 w-7 mx-auto mb-2 text-neutral-200" />No grounds found
-                </td></tr>
-              ) : filtered.map((g, i) => {
-                const id = g._id || g.id
-                const firstBanner = Array.isArray(g.banners) ? g.banners[0] : g.image
-                return (
-                  <tr key={id} className="border-b border-neutral-100 hover:bg-neutral-50 transition-colors">
-                    <td className="px-4 py-3 text-neutral-400 text-xs">{i + 1}</td>
-                    <td className="px-4 py-3">
-                      {firstBanner
-                        ? <img src={firstBanner} alt={g.name}
-                            className="w-10 h-10 rounded-lg object-cover border border-gray-100"
-                            onError={e => e.target.style.display = 'none'} />
-                        : <div className="w-10 h-10 rounded-lg bg-purple-100 flex items-center justify-center">
-                            <ImageIcon className="h-4 w-4 text-purple-400" />
-                          </div>
-                      }
-                    </td>
-                    <td className="px-4 py-3">
-                      <p className="text-xs font-semibold text-black">{g.name}</p>
-                      {g.description && (
-                        <p className="text-[10px] text-neutral-400 mt-0.5 max-w-[120px] truncate">{g.description}</p>
-                      )}
-                    </td>
-                    <td className="px-4 py-3">
-                      <div className="flex items-center gap-1.5">
-                        {getImg(g.venueId) && (
-                          <img src={getImg(g.venueId)} alt="" className="w-5 h-5 rounded object-cover shrink-0"
-                            onError={e => e.target.style.display = 'none'} />
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead className="bg-neutral-50 border-b border-neutral-200">
+                <tr>
+                  {['#','Banner','Name','Academy','Sports','Timing','Status','Active','Actions'].map(h => (
+                    <th key={h} className="text-left px-4 py-3 text-[11px] text-neutral-400 font-semibold whitespace-nowrap">{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {filtered.length === 0 ? (
+                  <tr><td colSpan={9} className="text-center py-14 text-neutral-400 text-sm">
+                    <MapPin className="h-7 w-7 mx-auto mb-2 text-neutral-200" />No grounds found
+                  </td></tr>
+                ) : filtered.map((g, i) => {
+                  const id      = g._id || g.id
+                  const banners = getGroundBanners(g)
+                  const gSports = getGroundSports(g)
+
+                  return (
+                    <tr key={id} className="border-b border-neutral-100 hover:bg-neutral-50 transition-colors">
+
+                      {/* # */}
+                      <td className="px-4 py-3 text-neutral-400 text-xs">{i + 1}</td>
+
+                      {/* Banner */}
+                      <td className="px-4 py-3">
+                        {banners[0]
+                          ? <img src={banners[0]} alt={g.name}
+                              className="w-10 h-10 rounded-lg object-cover border border-gray-100"
+                              onError={e => e.target.style.display = 'none'} />
+                          : <div className="w-10 h-10 rounded-lg bg-purple-100 flex items-center justify-center">
+                              <ImageIcon className="h-4 w-4 text-purple-400" />
+                            </div>
+                        }
+                      </td>
+
+                      {/* Name */}
+                      <td className="px-4 py-3">
+                        <p className="text-xs font-semibold text-black">{g.name}</p>
+                        {g.description && (
+                          <p className="text-[10px] text-neutral-400 mt-0.5 max-w-[120px] truncate">{g.description}</p>
                         )}
-                        <span className="text-xs text-neutral-600 bg-gray-100 px-2 py-0.5 rounded-full truncate max-w-[90px]">
-                          {getName(g.venueId)}
+                      </td>
+
+                      {/* Venue */}
+                      <td className="px-4 py-3">
+                        <div className="flex items-center gap-1.5">
+                          {typeof g.academyId === 'object' && g.academyId?.image && (
+                            <img src={g.academyId.image} alt="" className="w-5 h-5 rounded object-cover shrink-0"
+                              onError={e => e.target.style.display = 'none'} />
+                          )}
+                          <span className="text-xs text-neutral-600 bg-gray-100 px-2 py-0.5 rounded-full truncate max-w-[90px]">
+                            {getName(g.academyId)}
+                          </span>
+                        </div>
+                      </td>
+
+                      {/* Sports */}
+                      <td className="px-4 py-3 max-w-[160px]">
+                        <SportsTags sports={gSports} max={3} />
+                      </td>
+
+                      {/* Timing */}
+                      <td className="px-4 py-3">
+                        <div className="flex items-center gap-1">
+                          <Clock className="h-3 w-3 text-neutral-400" />
+                          <span className="text-[10px] text-neutral-500 whitespace-nowrap">
+                            {g.openingTime && g.closingTime ? `${g.openingTime} – ${g.closingTime}` : g.openingTime || '—'}
+                          </span>
+                        </div>
+                      </td>
+
+                      {/* Status */}
+                      <td className="px-4 py-3">
+                        <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium capitalize ${statusColor(g.status)}`}>
+                          {g.status || '—'}
                         </span>
-                      </div>
-                    </td>
-                    <td className="px-4 py-3">
-                      <span className="text-xs text-purple-700 bg-purple-50 px-2 py-0.5 rounded-full whitespace-nowrap">
-                        {getName(g.sportId)}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3">
-                      <span className="text-xs text-blue-700 bg-blue-50 px-2 py-0.5 rounded-full capitalize">
-                        {g.type || '—'}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3">
-                      <div className="flex items-center gap-1">
-                        <Clock className="h-3 w-3 text-neutral-400" />
-                        <span className="text-[10px] text-neutral-500 whitespace-nowrap">
-                          {g.openingTime && g.closingTime ? `${g.openingTime} – ${g.closingTime}` : g.openingTime || '—'}
-                        </span>
-                      </div>
-                    </td>
-                    <td className="px-4 py-3">
-                      <div className="flex items-center gap-1">
-                        <DollarSign className="h-3 w-3 text-neutral-400" />
-                        <span className="text-xs font-semibold text-neutral-700">
-                          {g.pricePerHour ? `₹${g.pricePerHour}` : '—'}
-                        </span>
-                      </div>
-                    </td>
-                    <td className="px-4 py-3">
-                      <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium capitalize ${statusColor(g.status)}`}>
-                        {g.status || '—'}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3">
-                      <button onClick={() => handleToggle(g)} disabled={togglingId === id}
-                        className={`text-[10px] px-2 py-0.5 rounded-full font-medium cursor-pointer disabled:opacity-60 transition-all
-                          ${g.isActive ? 'bg-purple-100 text-purple-700 hover:bg-purple-200' : 'bg-neutral-100 text-neutral-500 hover:bg-neutral-200'}`}>
-                        {togglingId === id ? '...' : g.isActive ? 'Active' : 'Inactive'}
-                      </button>
-                    </td>
-                    <td className="px-4 py-3">
-                      <div className="flex items-center gap-1.5">
-                        <button onClick={() => setViewGround(g)}
-                          className="p-1.5 rounded-lg bg-blue-50 border border-blue-200 text-blue-500 hover:bg-blue-100">
-                          <Eye className="h-3.5 w-3.5" />
+                      </td>
+
+                      {/* Active toggle */}
+                      <td className="px-4 py-3">
+                        <button onClick={() => handleToggle(g)} disabled={togglingId === id}
+                          className={`text-[10px] px-2 py-0.5 rounded-full font-medium cursor-pointer disabled:opacity-60 transition-all
+                            ${g.isActive ? 'bg-purple-100 text-purple-700 hover:bg-purple-200' : 'bg-neutral-100 text-neutral-500 hover:bg-neutral-200'}`}>
+                          {togglingId === id ? '...' : g.isActive ? 'Active' : 'Inactive'}
                         </button>
-                        <button onClick={() => { setEditGround(g); setShowForm(true) }}
-                          className="p-1.5 rounded-lg bg-amber-50 border border-amber-200 text-amber-500 hover:bg-amber-100">
-                          <Edit className="h-3.5 w-3.5" />
-                        </button>
-                        <button onClick={() => setDeleteTarget({ id, name: g.name })}
-                          className="p-1.5 rounded-lg bg-red-50 border border-red-200 text-red-500 hover:bg-red-100">
-                          <Trash2 className="h-3.5 w-3.5" />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                )
-              })}
-            </tbody>
-          </table>
+                      </td>
+
+                      {/* Actions */}
+                      <td className="px-4 py-3">
+                        <div className="flex items-center gap-1.5">
+                          <button onClick={() => setViewGround(g)}
+                            className="p-1.5 rounded-lg bg-blue-50 border border-blue-200 text-blue-500 hover:bg-blue-100">
+                            <Eye className="h-3.5 w-3.5" />
+                          </button>
+                          <button onClick={() => { setEditGround(g); setShowForm(true) }}
+                            className="p-1.5 rounded-lg bg-amber-50 border border-amber-200 text-amber-500 hover:bg-amber-100">
+                            <Edit className="h-3.5 w-3.5" />
+                          </button>
+                          <button onClick={() => setDeleteTarget({ id, name: g.name })}
+                            className="p-1.5 rounded-lg bg-red-50 border border-red-200 text-red-500 hover:bg-red-100">
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
           {filtered.length > 0 && (
             <div className="px-5 py-3 border-t border-neutral-100 text-xs text-neutral-400">
               Showing {filtered.length} of {grounds.length} grounds
@@ -826,21 +976,23 @@ export default function SportGrounds() {
               <p className="text-neutral-400 text-sm">No grounds found</p>
             </div>
           ) : filtered.map(g => {
-            const id = g._id || g.id
-            const firstBanner = Array.isArray(g.banners) ? g.banners[0] : g.image
+            const id      = g._id || g.id
+            const banners = getGroundBanners(g)
+            const gSports = getGroundSports(g)
+
             return (
               <div key={id} className="bg-white rounded-2xl border border-neutral-200 hover:border-purple-300 hover:shadow-sm transition-all overflow-hidden">
-                {firstBanner
-                  ? <img src={firstBanner} alt={g.name} className="w-full h-36 object-cover"
+                {banners[0]
+                  ? <img src={banners[0]} alt={g.name} className="w-full h-36 object-cover"
                       onError={e => e.target.style.display = 'none'} />
                   : <div className="w-full h-28 bg-purple-50 flex items-center justify-center">
                       <MapPin className="h-8 w-8 text-purple-300" />
                     </div>
                 }
-                {Array.isArray(g.banners) && g.banners.length > 1 && (
+                {banners.length > 1 && (
                   <div className="-mt-6 px-3 flex justify-end">
                     <span className="text-[9px] bg-black/60 text-white px-2 py-0.5 rounded-full">
-                      +{g.banners.length - 1} more
+                      +{banners.length - 1} more
                     </span>
                   </div>
                 )}
@@ -848,7 +1000,6 @@ export default function SportGrounds() {
                   <div className="flex items-start justify-between mb-2">
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-bold text-black truncate">{g.name}</p>
-                      <p className="text-[10px] text-neutral-400 mt-0.5 capitalize">{g.type || '—'}</p>
                     </div>
                     <button onClick={() => handleToggle(g)} disabled={togglingId === id}
                       className={`ml-2 text-[10px] px-2 py-0.5 rounded-full font-medium cursor-pointer disabled:opacity-60 shrink-0
@@ -856,26 +1007,27 @@ export default function SportGrounds() {
                       {togglingId === id ? '...' : g.isActive ? 'Active' : 'Inactive'}
                     </button>
                   </div>
+
+                  <div className="mb-2">
+                    <SportsTags sports={gSports} max={4} />
+                  </div>
+
                   <div className="flex flex-wrap gap-1.5 mb-3">
-                    <span className="text-[10px] bg-purple-50 text-purple-700 px-2 py-0.5 rounded-full">{getName(g.sportId)}</span>
                     <span className="text-[10px] bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full">{getName(g.venueId)}</span>
                     <span className={`text-[10px] px-2 py-0.5 rounded-full capitalize ${statusColor(g.status)}`}>
                       {g.status || 'unknown'}
                     </span>
                   </div>
-                  <div className="grid grid-cols-2 gap-1.5 text-[10px] text-neutral-500 mb-3">
-                    <div className="flex items-center gap-1">
-                      <Clock className="h-3 w-3" />
-                      {g.openingTime || '—'} – {g.closingTime || '—'}
-                    </div>
-                    <div className="flex items-center gap-1">
-                      <DollarSign className="h-3 w-3" />
-                      {g.pricePerHour ? `₹${g.pricePerHour}/hr` : '—'}
-                    </div>
+
+                  <div className="flex items-center gap-1 text-[10px] text-neutral-500 mb-3">
+                    <Clock className="h-3 w-3" />
+                    {g.openingTime || '—'} – {g.closingTime || '—'}
                   </div>
+
                   {g.description && (
                     <p className="text-[10px] text-neutral-400 mb-3 line-clamp-2">{g.description}</p>
                   )}
+
                   <div className="flex gap-2 pt-3 border-t border-neutral-100">
                     <button onClick={() => setViewGround(g)}
                       className="flex-1 flex items-center justify-center gap-1 text-xs text-blue-500 border border-blue-200 bg-blue-50 rounded-lg py-1.5 hover:bg-blue-100">

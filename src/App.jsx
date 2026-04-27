@@ -22,6 +22,7 @@ import AcaBookings from './pages/academy/AcaBookings'
 import ModernSlotUI from './pages/academy/SportSlots'
 import AcademyJoin from './pages/Academyjoin'
 import CourtBookings from './pages/academy/Courtbookings'
+import RevenueShare from './pages/RevenueShare'
 
 export default function App() {
   return (
@@ -45,6 +46,7 @@ export default function App() {
           <Route path="/grounds" element={<SportGrounds />} />
           <Route path="/venue" element={<Venues />} />
           <Route path="/bookings" element={<Bookings />} />
+           <Route path="/revenueShare" element={<RevenueShare />} />
 
           {/* academy  */}
             <Route path="/booking" element={<AcaBookings />} />

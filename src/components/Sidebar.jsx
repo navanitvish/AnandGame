@@ -40,18 +40,24 @@ const adminLinks = [
   { path: '/dashboard', label: 'Dashboard', sub: 'Overview & analytics', icon: LayoutDashboard },
   { path: '/users', label: 'Users', sub: 'Manage all users', icon: Users },
    { path: '/academyjoin', label: 'Academy Join', sub: 'Manage all academyjoin', icon: Users },
+   
   { path: '/catgeory', label: 'Category', sub: 'Manage categories', icon: Tag },
   { path: '/games', label: 'Games', sub: 'All active games', icon: Gamepad2 },
-  { path: '/playground', label: 'Playground', sub: 'City-wise grounds', icon: Dumbbell },
+    { path: '/venue', label: 'Venue', sub: 'Manage venues', icon: Building2 },
+  { path: '/playground', label: 'Join Games', sub: 'City-wise grounds', icon: Dumbbell },
+   { path: '/grounds', label: 'grounds', sub: 'Manage Grounds', icon: Clock },
   { path: '/courts', label: 'Courts', sub: 'Manage Courts', icon: Brain },
-  { path: '/grounds', label: 'grounds', sub: 'Manage Grounds', icon: Clock },
-  { path: '/plan', label: 'Plan', sub: 'Manage plans', icon: CreditCard },
+ 
+  
   { path: '/banners', label: 'Banners', sub: 'Manage banners', icon: Image },
-  { path: '/locations', label: 'Locations', sub: 'Manage locations', icon: MapPin },
-  { path: '/venue', label: 'Venue', sub: 'Manage venues', icon: Building2 },
+  // { path: '/locations', label: 'Locations', sub: 'Manage locations', icon: MapPin },
+
   { path: '/bookings', label: 'Bookings', sub: 'Manage Bookings', icon: Building2 },
+  { path: '/courtbooking', label: 'Court Bookings', sub: 'Manage Bookings', icon: Clock },
   { path: '/privacy-policys', label: 'Privacy Policy', sub: 'Manage privacy policy', icon: ScrollText },
   { path: '/term-conditions', label: 'Terms & Conditions', sub: 'Manage terms', icon: FileText },
+  { path: '/plan', label: 'Plan', sub: 'Manage plans', icon: CreditCard },
+    { path: '/revenueShare', label: 'Revenue Share', sub: 'Manage RevenueShare', icon: CreditCard },
 ]
 
 // ─────────────────────────────────────────────
