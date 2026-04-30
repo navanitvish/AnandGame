@@ -65,7 +65,7 @@ const adminLinks = [
 // ─────────────────────────────────────────────
 const academyLinks = [
   { path: '/dashboard', label: 'Dashboard', sub: 'Academy overview', icon: LayoutDashboard },
-  { path: '/playground', label: 'Spordround', sub: 'City-wise grounds', icon: Dumbbell },
+  { path: '/playground', label: 'Join Games', sub: 'City-wise grounds', icon: Dumbbell },
   { path: '/venue', label: 'Venue', sub: 'Manage venues', icon: Building2 },
   { path: '/grounds', label: 'grounds', sub: 'Manage Grounds', icon: Clock },
   { path: '/courts', label: 'Courts', sub: 'Manage Courts', icon: Brain },

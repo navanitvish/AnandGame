@@ -468,7 +468,7 @@ function AcademyManagersTab() {
 
     const results = await Promise.allSettled(
       userList.map((u) =>
-        getLocation(u.academyId)
+        getLocation(u._id)
           .then((res) => {
             const list = Array.isArray(res?.data?.data)
               ? res.data.data
@@ -664,7 +664,7 @@ function ImageUploadBox({ preview, fileName, onFileChange, onRemove }) {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" />
               </svg>
             </div>
-            <p className="text-xs text-neutral-400">Click to upload academy image</p>
+            <p className="text-xs text-neutral-400">Click to upload image</p>
             <p className="text-xs text-neutral-300 mt-0.5">PNG, JPG up to 10MB</p>
           </>
         )}
@@ -688,12 +688,11 @@ function BannersUploadBox({ banners, onAdd, onRemove }) {
     const files = Array.from(e.target.files || [])
     if (!files.length) return
     onAdd(files)
-    e.target.value = '' // reset so same file can be picked again
+    e.target.value = ''
   }
 
   return (
     <div className="flex flex-col gap-3">
-      {/* Banners grid preview */}
       {banners.length > 0 && (
         <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
           {banners.map((b, i) => (
@@ -703,7 +702,6 @@ function BannersUploadBox({ banners, onAdd, onRemove }) {
               style={{ height: 90 }}
             >
               <img src={b.preview} alt={`Banner ${i + 1}`} className="w-full h-full object-cover" />
-              {/* Hover overlay with remove button */}
               <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
                 <button
                   type="button"
@@ -713,11 +711,9 @@ function BannersUploadBox({ banners, onAdd, onRemove }) {
                   ×
                 </button>
               </div>
-              {/* File name badge at bottom */}
               <div className="absolute bottom-0 left-0 right-0 px-1.5 py-1 bg-black/30">
                 <p className="text-white text-[9px] truncate leading-tight">{b.file.name}</p>
               </div>
-              {/* Index badge */}
               <div className="absolute top-1.5 left-1.5">
                 <span className="text-[9px] font-semibold bg-black/50 text-white px-1.5 py-0.5 rounded-full">
                   {i + 1}
@@ -728,7 +724,6 @@ function BannersUploadBox({ banners, onAdd, onRemove }) {
         </div>
       )}
 
-      {/* Drop / click zone */}
       <div
         onClick={() => fileRef.current?.click()}
         className="border-2 border-dashed border-neutral-200 rounded-xl flex flex-col items-center justify-center cursor-pointer hover:border-purple-300 hover:bg-purple-50 transition-colors"
@@ -751,7 +746,6 @@ function BannersUploadBox({ banners, onAdd, onRemove }) {
         />
       </div>
 
-      {/* Count + clear all */}
       {banners.length > 0 && (
         <div className="flex items-center justify-between">
           <p className="text-xs text-neutral-400">
@@ -759,7 +753,7 @@ function BannersUploadBox({ banners, onAdd, onRemove }) {
           </p>
           <button
             type="button"
-            onClick={() => banners.forEach((_, i) => onRemove(0))}
+            onClick={() => { for (let i = banners.length - 1; i >= 0; i--) onRemove(i) }}
             className="text-xs text-red-400 hover:text-red-600 transition-colors"
           >
             Remove all
@@ -812,7 +806,8 @@ const EMPTY_LOCATION = {
 }
 
 function CreateLocationStep({ registeredAcademy, onSuccess, onSkip }) {
-  const academyId   = registeredAcademy?.academy?._id  || ''
+  // ✅ FIX: userId = user._id (NOT academy._id)
+  const userId      = registeredAcademy?.user?._id     || ''
   const academyName = registeredAcademy?.academy?.name || ''
   const userName    = registeredAcademy?.user?.name    || ''
 
@@ -822,13 +817,42 @@ function CreateLocationStep({ registeredAcademy, onSuccess, onSkip }) {
   const [loading,        setLoading]        = useState(false)
   const [apiError,       setApiError]       = useState('')
 
-  console.log('[CreateLocationStep] academyId:', academyId, '| registeredAcademy:', registeredAcademy)
+  // ── Logo (ogc / image) ──────────────────────────────────────────────────
+  const [logoFile,    setLogoFile]    = useState(null)
+  const [logoPreview, setLogoPreview] = useState('')
+
+  // ── Banners ─────────────────────────────────────────────────────────────
+  const [bannerFiles, setBannerFiles] = useState([])
+
+  console.log('[CreateLocationStep] userId (user._id):', userId, '| registeredAcademy:', registeredAcademy)
 
   const handleChange       = (field, value) => setLocation((prev) => ({ ...prev, [field]: value }))
   const handleCoordsChange = (index, value) => {
     const coords = [...(location.coordinates || ['', ''])]
     coords[index] = value
     setLocation((prev) => ({ ...prev, coordinates: coords }))
+  }
+
+  // ── Logo handlers ────────────────────────────────────────────────────────
+  const handleLogoChange = (e) => {
+    const f = e.target.files?.[0]
+    if (f) { setLogoFile(f); setLogoPreview(URL.createObjectURL(f)) }
+  }
+  const handleLogoRemove = () => {
+    if (logoPreview) URL.revokeObjectURL(logoPreview)
+    setLogoFile(null); setLogoPreview('')
+  }
+
+  // ── Banner handlers ──────────────────────────────────────────────────────
+  const handleAddBanners = (files) => {
+    const newEntries = files.map((f) => ({ file: f, preview: URL.createObjectURL(f) }))
+    setBannerFiles((prev) => [...prev, ...newEntries])
+  }
+  const handleRemoveBanner = (index) => {
+    setBannerFiles((prev) => {
+      URL.revokeObjectURL(prev[index].preview)
+      return prev.filter((_, i) => i !== index)
+    })
   }
 
   const validateLocation = () => {
@@ -850,27 +874,37 @@ function CreateLocationStep({ registeredAcademy, onSuccess, onSkip }) {
 
   const buildPayload = () => {
     const hasCoords = location.coordinates?.[0] !== '' && location.coordinates?.[1] !== ''
-    const payload = {
-      userId:         academyId,
-      isVenueAddress: location.isVenueAddress,
-    }
+
+    // ✅ Using FormData so files (logo + banners) can be sent
+    const formData = new FormData()
+
+    // ✅ userId = user._id
+    formData.append('userId', userId)
+    formData.append('isVenueAddress', location.isVenueAddress)
+
     if (hasCoords) {
-      payload.coordinates = [
-        parseFloat(location.coordinates[0]),
-        parseFloat(location.coordinates[1]),
-      ]
+      formData.append('coordinates[]', parseFloat(location.coordinates[0]))
+      formData.append('coordinates[]', parseFloat(location.coordinates[1]))
     }
+
     ;['buildingNumber', 'name', 'address', 'city', 'district', 'zipcode', 'state', 'area', 'country'].forEach((k) => {
-      if (location[k]?.trim()) payload[k] = location[k].trim()
+      if (location[k]?.trim()) formData.append(k, location[k].trim())
     })
-    return payload
+
+    // ── logo / ogc image ──
+    if (logoFile) formData.append('image', logoFile)
+
+    // ── multiple banners ──
+    bannerFiles.forEach((b) => formData.append('banners', b.file))
+
+    return formData
   }
 
   const handleSubmit = async (e) => {
     e.preventDefault()
     setApiError('')
-    if (!academyId) {
-      setApiError('Academy ID is missing. Please go back and register again.')
+    if (!userId) {
+      setApiError('User ID is missing. Please go back and register again.')
       return
     }
     const le = validateLocation()
@@ -888,6 +922,7 @@ function CreateLocationStep({ registeredAcademy, onSuccess, onSkip }) {
 
   return (
     <div>
+      {/* ── Success banner ── */}
       <div className="mb-5 bg-emerald-50 border border-emerald-200 rounded-xl px-5 py-4">
         <div className="flex items-start gap-3">
           <div className="w-8 h-8 rounded-full bg-emerald-500 flex items-center justify-center flex-shrink-0 mt-0.5">
@@ -901,7 +936,7 @@ function CreateLocationStep({ registeredAcademy, onSuccess, onSkip }) {
               Manager: <strong>{userName}</strong> · Academy: <strong>{academyName}</strong>
             </p>
             <p className="text-xs text-emerald-500 mt-1">
-              Academy ID <code className="bg-emerald-100 px-1 rounded font-mono">{academyId}</code> has been auto-filled as <code className="bg-emerald-100 px-1 rounded">userId</code>.
+              User ID <code className="bg-emerald-100 px-1 rounded font-mono">{userId}</code> has been auto-filled as <code className="bg-emerald-100 px-1 rounded">userId</code>.
             </p>
           </div>
         </div>
@@ -913,6 +948,8 @@ function CreateLocationStep({ registeredAcademy, onSuccess, onSkip }) {
       <div className="flex gap-6 items-start">
         <div className="flex-1 min-w-0">
           <form onSubmit={handleSubmit} noValidate>
+
+            {/* ── Location Details ── */}
             <div className="bg-white rounded-xl border border-neutral-200 p-5 mb-4">
               <div className="flex items-center justify-between mb-4">
                 <p className="text-xs font-semibold text-neutral-400 uppercase tracking-wide">📍 Location Details</p>
@@ -935,14 +972,16 @@ function CreateLocationStep({ registeredAcademy, onSuccess, onSkip }) {
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+
+                {/* ── userId auto-filled (user._id) ── */}
                 <div className="sm:col-span-2">
-                  <FieldGroup label="User ID (Academy ID — auto-filled from registration)">
+                  <FieldGroup label="User ID (user._id — auto-filled from registration)">
                     <div className="flex items-center gap-2">
                       <div className="flex-1 border border-neutral-200 bg-neutral-50 rounded-lg px-3 py-2 text-sm text-neutral-500 font-mono truncate select-all">
-                        {academyId || <span className="text-red-400">Missing — register academy first</span>}
+                        {userId || <span className="text-red-400">Missing — register academy first</span>}
                       </div>
-                      <span className={`text-xs px-2 py-1.5 rounded-lg whitespace-nowrap font-medium flex-shrink-0 border ${academyId ? 'text-emerald-700 bg-emerald-50 border-emerald-200' : 'text-red-600 bg-red-50 border-red-200'}`}>
-                        {academyId ? '✓ Auto-filled' : '✗ Missing'}
+                      <span className={`text-xs px-2 py-1.5 rounded-lg whitespace-nowrap font-medium flex-shrink-0 border ${userId ? 'text-emerald-700 bg-emerald-50 border-emerald-200' : 'text-red-600 bg-red-50 border-red-200'}`}>
+                        {userId ? '✓ Auto-filled' : '✗ Missing'}
                       </span>
                     </div>
                   </FieldGroup>
@@ -1021,8 +1060,39 @@ function CreateLocationStep({ registeredAcademy, onSuccess, onSkip }) {
               </div>
             </div>
 
+            {/* ── Logo / OGC Image ── */}
+            <div className="bg-white rounded-xl border border-neutral-200 p-5 mb-4">
+              <p className="text-xs font-semibold text-neutral-400 uppercase tracking-wide mb-4">📸 Location Logo / Image (ogc)</p>
+              <ImageUploadBox
+                preview={logoPreview}
+                fileName={logoFile?.name}
+                onFileChange={handleLogoChange}
+                onRemove={handleLogoRemove}
+              />
+            </div>
+
+            {/* ── Banners ── */}
+            <div className="bg-white rounded-xl border border-neutral-200 p-5 mb-5">
+              <div className="flex items-start justify-between mb-1">
+                <p className="text-xs font-semibold text-neutral-400 uppercase tracking-wide">🖼️ Location Banners</p>
+                {bannerFiles.length > 0 && (
+                  <span className="text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full font-medium">
+                    {bannerFiles.length} added
+                  </span>
+                )}
+              </div>
+              <p className="text-xs text-neutral-400 mb-4">
+                Upload multiple banner images for this location (optional)
+              </p>
+              <BannersUploadBox
+                banners={bannerFiles}
+                onAdd={handleAddBanners}
+                onRemove={handleRemoveBanner}
+              />
+            </div>
+
             <div className="flex gap-3">
-              <button type="submit" disabled={loading || !academyId}
+              <button type="submit" disabled={loading || !userId}
                 className="flex items-center gap-2 bg-black text-white text-sm font-medium px-5 py-2 rounded-lg hover:bg-neutral-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
                 {loading && <div className="w-3.5 h-3.5 border-2 border-white/40 border-t-white rounded-full animate-spin" />}
                 {loading ? 'Creating…' : '📍 Create Location'}
@@ -1035,15 +1105,24 @@ function CreateLocationStep({ registeredAcademy, onSuccess, onSkip }) {
           </form>
         </div>
 
-        {/* Preview panel */}
+        {/* ── Preview panel ── */}
         <div className="w-72 flex-shrink-0 hidden lg:block">
           <div className="bg-white border border-neutral-200 rounded-xl p-5 sticky top-4">
             <p className="text-xs font-medium text-neutral-400 mb-4 uppercase tracking-wide">Location Preview</p>
+
+            {/* Logo preview */}
+            {logoPreview && (
+              <div className="w-full h-24 rounded-xl overflow-hidden mb-3 bg-neutral-100">
+                <img src={logoPreview} alt="Logo" className="w-full h-full object-cover" />
+              </div>
+            )}
+
             <div className="bg-neutral-50 rounded-lg p-3 mb-4">
-              <p className="text-xs text-neutral-400 mb-0.5">Academy (userId)</p>
+              <p className="text-xs text-neutral-400 mb-0.5">Academy (userId = user._id)</p>
               <p className="text-sm font-semibold text-black">{academyName || '—'}</p>
-              <p className="text-xs text-neutral-400 mt-0.5 font-mono text-[10px] truncate">{academyId || '—'}</p>
+              <p className="text-xs text-neutral-400 mt-0.5 font-mono text-[10px] truncate">{userId || '—'}</p>
             </div>
+
             {location.coordinates?.[0] && location.coordinates?.[1] && (
               <div className="bg-blue-50 border border-blue-100 rounded-lg p-3 mb-3">
                 <p className="text-xs text-blue-500 mb-1 font-medium">📌 Coordinates</p>
@@ -1052,6 +1131,7 @@ function CreateLocationStep({ registeredAcademy, onSuccess, onSkip }) {
                 </p>
               </div>
             )}
+
             <hr className="border-neutral-100 mb-3" />
             {[
               { label: 'Building', value: location.buildingNumber },
@@ -1069,12 +1149,34 @@ function CreateLocationStep({ registeredAcademy, onSuccess, onSkip }) {
                 <span className="font-medium text-black text-right max-w-[120px] truncate">{value}</span>
               </div>
             ) : null)}
+
             <div className="flex justify-between items-center text-xs py-2 mt-1">
               <span className="text-neutral-400">Venue?</span>
               <span className={`px-2 py-0.5 rounded-full font-medium ${location.isVenueAddress ? 'bg-purple-100 text-purple-700' : 'bg-neutral-100 text-neutral-500'}`}>
                 {location.isVenueAddress ? 'Yes' : 'No'}
               </span>
             </div>
+
+            {/* Banner thumbnails preview */}
+            {bannerFiles.length > 0 && (
+              <div className="mt-4">
+                <p className="text-xs text-neutral-400 mb-2">
+                  Banners ({bannerFiles.length})
+                </p>
+                <div className="grid grid-cols-3 gap-1.5">
+                  {bannerFiles.slice(0, 6).map((b, i) => (
+                    <div key={i} className="rounded-lg overflow-hidden bg-neutral-100 relative" style={{ height: 48 }}>
+                      <img src={b.preview} alt="" className="w-full h-full object-cover" />
+                      {i === 5 && bannerFiles.length > 6 && (
+                        <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
+                          <span className="text-white text-xs font-semibold">+{bannerFiles.length - 6}</span>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -1096,7 +1198,6 @@ function RegisterAcademyTab({ onAllDone }) {
   const [form,         setForm]         = useState(EMPTY_FORM)
   const [imageFile,    setImageFile]    = useState(null)
   const [imagePreview, setImagePreview] = useState('')
-  // ── banners: array of { file: File, preview: string } ──
   const [bannerFiles,  setBannerFiles]  = useState([])
   const [errors,       setErrors]       = useState({})
   const [loading,      setLoading]      = useState(false)
@@ -1108,7 +1209,6 @@ function RegisterAcademyTab({ onAllDone }) {
     if (errors[name]) setErrors((prev) => ({ ...prev, [name]: '' }))
   }
 
-  // ── banner handlers ──────────────────────────────────────────────────────
   const handleAddBanners = (files) => {
     const newEntries = files.map((f) => ({ file: f, preview: URL.createObjectURL(f) }))
     setBannerFiles((prev) => [...prev, ...newEntries])
@@ -1116,7 +1216,6 @@ function RegisterAcademyTab({ onAllDone }) {
 
   const handleRemoveBanner = (index) => {
     setBannerFiles((prev) => {
-      // revoke blob URL to avoid memory leak
       URL.revokeObjectURL(prev[index].preview)
       return prev.filter((_, i) => i !== index)
     })
@@ -1155,7 +1254,6 @@ function RegisterAcademyTab({ onAllDone }) {
       const formData = new FormData()
       Object.entries(form).forEach(([k, v]) => formData.append(k, v))
       if (imageFile) formData.append('image', imageFile)
-      // append each banner with the key 'banners' (matches Postman payload)
       bannerFiles.forEach((b) => formData.append('banners', b.file))
 
       const res   = await registerAcademy(formData)
@@ -1333,8 +1431,6 @@ function RegisterAcademyTab({ onAllDone }) {
                 <span className={`text-xs px-2 py-0.5 rounded-full font-medium capitalize ${ROLE_STYLES[form.role] || 'bg-neutral-100 text-neutral-700'}`}>{form.role}</span>
               </div>
             )}
-
-            {/* Banner thumbnails in preview */}
             {bannerFiles.length > 0 && (
               <div className="mt-4">
                 <p className="text-xs text-neutral-400 mb-2">Banner previews</p>

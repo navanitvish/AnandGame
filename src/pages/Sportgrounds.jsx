@@ -22,10 +22,10 @@ const getAcademyManagers = async () => {
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 const toList  = (res) => {
-  if (Array.isArray(res))             return res
+  if (Array.isArray(res))                   return res
   if (Array.isArray(res?.data?.data?.data)) return res.data.data.data
-  if (Array.isArray(res?.data?.data)) return res.data.data
-  if (Array.isArray(res?.data))       return res.data
+  if (Array.isArray(res?.data?.data))       return res.data.data
+  if (Array.isArray(res?.data))             return res.data
   return []
 }
 const getId   = (f) => (typeof f === 'object' && f !== null ? f?._id  : f) || ''
@@ -49,6 +49,8 @@ const getGroundSports = (g) => {
   return []
 }
 
+
+
 // ── Styles ────────────────────────────────────────────────────────────────────
 const inputCls =
   'w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm text-gray-900 ' +
@@ -56,11 +58,12 @@ const inputCls =
   'focus:ring-purple-400/20 transition-all bg-white'
 const labelCls = 'block text-xs font-medium text-gray-500 mb-1.5'
 
-const STATUS_OPTS  = ['available', 'unavailable', 'maintenance']
+const STATUS_OPTS = ['available', 'unavailable', 'maintenance']
 
 const emptyForm = {
   venueId: '', sportIds: [], academyId: '', name: '', description: '',
-  openingTime: '', closingTime: '',
+  openingTime: '06:00 AM',
+  closingTime:  '06:00 PM',
   status: 'available', isActive: 'true',
 }
 
@@ -154,6 +157,26 @@ function Field({ label, k, type = 'text', ph = '', required = false, form, set, 
       <input type={type} placeholder={ph} value={form[k]}
         onChange={e => { set(k, e.target.value); setErrors(er => ({ ...er, [k]: '' })) }}
         className={`${inputCls} ${errors[k] ? 'border-red-300 focus:border-red-400 focus:ring-red-400/20' : ''}`} />
+      {errors[k] && <p className="text-xs text-red-500 mt-1">{errors[k]}</p>}
+    </div>
+  )
+}
+
+// ── Time Field (free text, e.g. "06:00 AM") ───────────────────────────────────
+function TimeField({ label, k, required = false, form, set, errors, setErrors }) {
+  return (
+    <div>
+      <label className={labelCls}>{label}{required && ' *'}</label>
+      <div className="relative">
+        <Clock className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-400 pointer-events-none" />
+        <input
+          type="text"
+          placeholder="e.g. 06:00 AM"
+          value={form[k]}
+          onChange={e => { set(k, e.target.value); setErrors(er => ({ ...er, [k]: '' })) }}
+          className={`${inputCls} pl-8 ${errors[k] ? 'border-red-300 focus:border-red-400 focus:ring-red-400/20' : ''}`}
+        />
+      </div>
       {errors[k] && <p className="text-xs text-red-500 mt-1">{errors[k]}</p>}
     </div>
   )
@@ -287,16 +310,16 @@ function ViewModal({ ground, onClose, onEdit }) {
   const banners = getGroundBanners(ground)
 
   const rows = [
-    { label: 'Name',            value: ground.name },
-    { label: 'Venue',           value: getName(ground.venueId) },
-    { label: 'Sports',          value: sports.map(s => getName(s)).join(', ') || '—' },
-    { label: 'Academy',         value: getName(ground.academyId) },
-    { label: 'Opening Time',    value: ground.openingTime || '—' },
-    { label: 'Closing Time',    value: ground.closingTime  || '—' },
-    { label: 'No. of Courts',   value: ground.noOfCourts ?? '—' },
-    { label: 'Status',          value: ground.status || '—' },
-    { label: 'Active',          value: ground.isActive ? 'Yes' : 'No' },
-    { label: 'Created',         value: ground.createdAt
+    { label: 'Name',          value: ground.name },
+    { label: 'Venue',         value: getName(ground.venueId) },
+    { label: 'Sports',        value: sports.map(s => getName(s)).join(', ') || '—' },
+    { label: 'Academy',       value: getName(ground.academyId) },
+    { label: 'Opening Time',  value: ground.openingTime || '—' },
+    { label: 'Closing Time',  value: ground.closingTime  || '—' },
+    { label: 'No. of Courts', value: ground.noOfCourts ?? '—' },
+    { label: 'Status',        value: ground.status || '—' },
+    { label: 'Active',        value: ground.isActive ? 'Yes' : 'No' },
+    { label: 'Created',       value: ground.createdAt
         ? new Date(ground.createdAt).toLocaleDateString('en-IN', { day:'2-digit', month:'short', year:'numeric' })
         : '—' },
   ]
@@ -466,15 +489,15 @@ function GroundFormModal({ show, editGround, venues, sports, academyOptions, onC
         .filter(Boolean)
 
       setForm({
-        venueId:      getId(editGround.venueId)  || '',
+        venueId:     getId(editGround.venueId)   || '',
         sportIds,
-        academyId:    getId(editGround.academyId) || '',
-        name:         editGround.name         || '',
-        description:  editGround.description  || '',
-        openingTime:  editGround.openingTime  || '',
-        closingTime:  editGround.closingTime  || '',
-        status:       editGround.status       || 'available',
-        isActive:     String(editGround.isActive ?? true),
+        academyId:   getId(editGround.academyId) || '',
+        name:        editGround.name        || '',
+        description: editGround.description || '',
+        openingTime: editGround.openingTime || '06:00 AM',
+        closingTime: editGround.closingTime || '06:00 PM',
+        status:      editGround.status      || 'available',
+        isActive:    String(editGround.isActive ?? true),
       })
     } else {
       setForm(emptyForm)
@@ -487,11 +510,10 @@ function GroundFormModal({ show, editGround, venues, sports, academyOptions, onC
 
   const validate = () => {
     const e = {}
-    // venueId is optional — no validation needed
-    if (!form.sportIds?.length)     e.sportIds    = 'Select at least one sport'
-    if (!form.name.trim())          e.name        = 'Name is required'
-    if (!form.openingTime)          e.openingTime = 'Opening time is required'
-    if (!form.closingTime)          e.closingTime = 'Closing time is required'
+    if (!form.sportIds?.length) e.sportIds    = 'Select at least one sport'
+    if (!form.name.trim())      e.name        = 'Name is required'
+    if (!form.openingTime)      e.openingTime = 'Opening time is required'
+    if (!form.closingTime)      e.closingTime = 'Closing time is required'
     return e
   }
 
@@ -500,15 +522,16 @@ function GroundFormModal({ show, editGround, venues, sports, academyOptions, onC
     if (Object.keys(e).length) { setErrors(e); return }
 
     const fd = new FormData()
-    if (form.venueId) fd.append('venueId', form.venueId)
+    if (form.venueId)   fd.append('venueId',   form.venueId)
     form.sportIds.forEach(id => fd.append('sports', id))
     if (form.academyId) fd.append('academyId', form.academyId)
-    fd.append('name',         form.name.trim())
-    fd.append('description',  form.description.trim())
-    fd.append('openingTime',  form.openingTime)
-    fd.append('closingTime',  form.closingTime)
-    fd.append('status',       form.status)
-    fd.append('isActive',     form.isActive)
+    fd.append('name',        form.name.trim())
+    fd.append('description', form.description.trim())
+    // Send as 12h format — change to24h(form.openingTime) if your API expects 24h
+    fd.append('openingTime', form.openingTime)
+    fd.append('closingTime', form.closingTime)
+    fd.append('status',   form.status)
+    fd.append('isActive', form.isActive)
     banners.forEach(f => fd.append('banners', f))
 
     setLoading(true)
@@ -559,7 +582,6 @@ function GroundFormModal({ show, editGround, venues, sports, academyOptions, onC
             <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-3">Linked References</p>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
 
-              {/* Venue — optional */}
               <DropDown
                 label="Venue"
                 k="venueId"
@@ -592,7 +614,7 @@ function GroundFormModal({ show, editGround, venues, sports, academyOptions, onC
             <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-3">Basic Info</p>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div className="sm:col-span-2">
-                <Field label="Ground Name" k="name" ph="e.g. Cricket Ground 1" required {...fieldProps} />
+                <Field label="Name" k="name" ph="e.g. Cricket Ground 1" required {...fieldProps} />
               </div>
               <div className="sm:col-span-2">
                 <label className={labelCls}>Description</label>
@@ -608,8 +630,8 @@ function GroundFormModal({ show, editGround, venues, sports, academyOptions, onC
           <div>
             <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-3">Timing</p>
             <div className="grid grid-cols-2 gap-3">
-              <Field label="Opening Time" k="openingTime" type="time" required {...fieldProps} />
-              <Field label="Closing Time" k="closingTime" type="time" required {...fieldProps} />
+              <TimeField label="Opening Time" k="openingTime" required {...fieldProps} />
+              <TimeField label="Closing Time" k="closingTime" required {...fieldProps} />
             </div>
           </div>
 
@@ -694,7 +716,7 @@ export default function SportGrounds() {
   const academyOptions = academyManagers
     .map(u => ({
       _id:  u.academyId || '',
-      name: u.academy?.name || u.academy?.name || u.academy?.name || u.email || u._id || 'Unknown',
+      name: u.academy?.name || u.email || u._id || 'Unknown',
     }))
     .filter(o => o._id)
 
@@ -869,10 +891,8 @@ export default function SportGrounds() {
                   return (
                     <tr key={id} className="border-b border-neutral-100 hover:bg-neutral-50 transition-colors">
 
-                      {/* # */}
                       <td className="px-4 py-3 text-neutral-400 text-xs">{i + 1}</td>
 
-                      {/* Banner */}
                       <td className="px-4 py-3">
                         {banners[0]
                           ? <img src={banners[0]} alt={g.name}
@@ -884,7 +904,6 @@ export default function SportGrounds() {
                         }
                       </td>
 
-                      {/* Name */}
                       <td className="px-4 py-3">
                         <p className="text-xs font-semibold text-black">{g.name}</p>
                         {g.description && (
@@ -892,7 +911,6 @@ export default function SportGrounds() {
                         )}
                       </td>
 
-                      {/* Venue */}
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-1.5">
                           {typeof g.academyId === 'object' && g.academyId?.image && (
@@ -905,12 +923,10 @@ export default function SportGrounds() {
                         </div>
                       </td>
 
-                      {/* Sports */}
                       <td className="px-4 py-3 max-w-[160px]">
                         <SportsTags sports={gSports} max={3} />
                       </td>
 
-                      {/* Timing */}
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-1">
                           <Clock className="h-3 w-3 text-neutral-400" />
@@ -920,14 +936,12 @@ export default function SportGrounds() {
                         </div>
                       </td>
 
-                      {/* Status */}
                       <td className="px-4 py-3">
                         <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium capitalize ${statusColor(g.status)}`}>
                           {g.status || '—'}
                         </span>
                       </td>
 
-                      {/* Active toggle */}
                       <td className="px-4 py-3">
                         <button onClick={() => handleToggle(g)} disabled={togglingId === id}
                           className={`text-[10px] px-2 py-0.5 rounded-full font-medium cursor-pointer disabled:opacity-60 transition-all
@@ -936,7 +950,6 @@ export default function SportGrounds() {
                         </button>
                       </td>
 
-                      {/* Actions */}
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-1.5">
                           <button onClick={() => setViewGround(g)}

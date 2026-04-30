@@ -6,7 +6,7 @@ import {
   deleteVenue,
   toggleVenueStatus,
   getLocation,
-  getLocationById,   // ✅ replaces inline fetchSingleLocation
+  getLocationById,
   getAcademyManagers,
 } from '../api/api'
 
@@ -20,7 +20,6 @@ const locationLabel = (l) => {
 }
 
 // ─── Normalize locations from any API response shape ──────────────────────
-// Handles: [], { data: [] }, { data: { data: [] } }, { data: { data: { data: [] } } }
 const extractLocations = (res) => {
   if (Array.isArray(res))                         return res
   if (Array.isArray(res?.data))                   return res.data
@@ -30,12 +29,11 @@ const extractLocations = (res) => {
 }
 
 // ─── Extract venues from API response ─────────────────────────────────────
-// API shape: { success, message, data: { total, totalPages, page, limit, data: Venue[] } }
 const extractVenues = (res) => {
   if (Array.isArray(res))                         return res
   if (Array.isArray(res?.data))                   return res.data
-  if (Array.isArray(res?.data?.data))             return res.data.data        // ✅ { data: { data: [] } }
-  if (Array.isArray(res?.data?.data?.data))       return res.data.data.data   // deeper nesting fallback
+  if (Array.isArray(res?.data?.data))             return res.data.data
+  if (Array.isArray(res?.data?.data?.data))       return res.data.data.data
   return []
 }
 
@@ -187,12 +185,13 @@ function VenueFormModal({ show, editVenue, academies, academiesLoading, onClose,
   const [locations,        setLocations]        = useState([])
   const [locationsLoading, setLocationsLoading] = useState(false)
 
-  // ── Fetch locations by academyId ──────────────────────────────────────────
-  const fetchLocationsByAcademy = async (academyId) => {
-    if (!academyId) { setLocations([]); return }
+  // ── Fetch locations by user._id ───────────────────────────────────────────
+  // ✅ FIX: pass user._id (a._id) not academyId
+  const fetchLocationsByAcademy = async (userId) => {
+    if (!userId) { setLocations([]); return }
     setLocationsLoading(true)
     try {
-      const res = await getLocation(academyId)
+      const res = await getLocation(userId)   // ✅ userId = user._id
       const list = extractLocations(res)
       setLocations(list)
     } catch {
@@ -214,7 +213,11 @@ function VenueFormModal({ show, editVenue, academies, academiesLoading, onClose,
         isActive:    editVenue.isActive !== undefined ? String(editVenue.isActive) : 'true',
       })
       setPreview(editVenue.image || null)
-      if (editVenue.academyId) fetchLocationsByAcademy(editVenue.academyId)
+      // ✅ pass the selected academy's user._id to fetch its locations
+      if (editVenue.academyId) {
+        // find the academy from the list to get user._id
+        fetchLocationsByAcademy(editVenue.academyId)
+      }
     } else {
       setForm({ academyId: '', locationId: '', name: '', description: '', isActive: 'true' })
       setPreview(null)
@@ -224,11 +227,12 @@ function VenueFormModal({ show, editVenue, academies, academiesLoading, onClose,
     setErrors({})
   }, [editVenue, show])
 
+  // ✅ FIX: when academy changes, use a._id (user._id) to fetch locations
   const handleAcademyChange = (e) => {
-    const academyId = e.target.value
-    setForm((prev) => ({ ...prev, academyId, locationId: '' }))
+    const selectedUserId = e.target.value   // value is now user._id
+    setForm((prev) => ({ ...prev, academyId: selectedUserId, locationId: '' }))
     setErrors((prev) => ({ ...prev, academyId: '' }))
-    fetchLocationsByAcademy(academyId)
+    fetchLocationsByAcademy(selectedUserId)  // ✅ user._id passed directly
   }
 
   const validate = () => {
@@ -327,6 +331,7 @@ function VenueFormModal({ show, editVenue, academies, academiesLoading, onClose,
           </div>
 
           {/* Academy Dropdown */}
+          {/* ✅ option value is now a._id (user._id) so fetchLocationsByAcademy gets correct id */}
           <div>
             <label className="text-xs text-neutral-500 mb-1 block">Academy *</label>
             {academiesLoading ? (
@@ -344,8 +349,9 @@ function VenueFormModal({ show, editVenue, academies, academiesLoading, onClose,
               >
                 <option value="">— Select an academy —</option>
                 {academies.map((a) => (
-                  <option key={a.academyId} value={a.academyId}>
-                    {a.academy?.name || a.name || a.email}
+                  // ✅ value = a._id (user._id) instead of a.academyId
+                  <option key={a._id} value={a._id}>
+                    {a.academy?.name || a.academyName || a.name || a.email}
                   </option>
                 ))}
               </select>
@@ -486,16 +492,14 @@ export default function Venues() {
   const [academies,        setAcademies]        = useState([])
   const [academiesLoading, setAcademiesLoading] = useState(false)
 
-  // locationMap: { [locationId]: locationObject }
   const [locationMap, setLocationMap] = useState({})
 
   // ── Fetch Venues ──────────────────────────────────────────────────────────
-  // API response shape: { success, message, data: { total, totalPages, page, limit, data: Venue[] } }
   const fetchVenues = async () => {
     setLoading(true)
     try {
       const res = await getVenues()
-      const list = extractVenues(res)  // ✅ handles nested data.data shape
+      const list = extractVenues(res)
       setVenues(list)
       return list
     } catch (err) {
@@ -512,8 +516,8 @@ export default function Venues() {
     try {
       const res = await getAcademyManagers()
       let list = []
-      if (Array.isArray(res))                 list = res
-      else if (Array.isArray(res?.data))      list = res.data
+      if (Array.isArray(res))                  list = res
+      else if (Array.isArray(res?.data))       list = res.data
       else if (Array.isArray(res?.data?.data)) list = res.data.data
       setAcademies(list)
       return list
@@ -526,15 +530,14 @@ export default function Venues() {
   }
 
   // ── Build locationMap ─────────────────────────────────────────────────────
-  // Step 1: bulk fetch per academy using academyId (userId)
-  // Step 2: individually fetch any still-unresolved locationIds via getLocationById
+  // ✅ FIX: use a._id (user._id) instead of a.academyId for getLocation call
   const buildLocationMap = async (academyList, venueList) => {
     const map = {}
 
-    // Step 1 — bulk fetch per academy
+    // Step 1 — bulk fetch per academy using user._id
     if (academyList.length > 0) {
       const results = await Promise.allSettled(
-        academyList.map((a) => getLocation(a.academyId))
+        academyList.map((a) => getLocation(a._id))   // ✅ a._id = user._id
       )
       results.forEach((r) => {
         if (r.status === 'fulfilled') {
@@ -548,7 +551,6 @@ export default function Venues() {
     }
 
     // Step 2 — individually resolve remaining locationIds via getLocationById
-    // (uses /locations/get/:id — previously inline fetchSingleLocation)
     const unresolvedIds = [
       ...new Set(
         venueList
@@ -563,7 +565,6 @@ export default function Venues() {
       )
       singles.forEach((r, i) => {
         if (r.status === 'fulfilled' && r.value) {
-          // getLocationById returns axios-unwrapped response: { success, data: Location }
           const loc = r.value?.data || r.value
           if (loc) {
             const lid = loc._id || loc.id || unresolvedIds[i]
@@ -765,7 +766,7 @@ export default function Venues() {
                     {/* Name */}
                     <td className="px-5 py-3 font-medium text-black capitalize">{v.name}</td>
 
-                    {/* Location — resolved from locationMap */}
+                    {/* Location */}
                     <td className="px-5 py-3">
                       <span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full capitalize">
                         {getLocationDisplay(v.locationId)}
