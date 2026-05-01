@@ -51,6 +51,7 @@ const emptyForm = {
   name:                 '',
   description:          '',
   coach:                '',
+  price:                '',
   openingTime:          '06:00 AM',
   closingTime:          '06:00 PM',
   level:                '',
@@ -124,6 +125,7 @@ function ViewModal({ ground, onClose, onEdit }) {
     { label: 'Category',       value: getName(ground.categoryId) },
     { label: 'Academy',        value: getName(ground.academyId) },
     { label: 'Coach',          value: ground.coach || '—' },
+    { label: 'Price',          value: ground.price ? `₹${ground.price}` : '—' },
     { label: 'Level',          value: (ground.level && ground.level !== 'null') ? ground.level : '—' },
     { label: 'Duration (hrs)', value: ground.sportDurationInHours ?? '—' },
     { label: 'Sport Date',     value: ground.sportDateDisplay || '—' },
@@ -290,6 +292,7 @@ function GroundFormModal({ show, editGround, venues, sports, categories, academy
         name:                 editGround.name                 || '',
         description:          editGround.description          || '',
         coach:                editGround.coach                || '',
+        price:                editGround.price                || '',
         openingTime:          editGround.openingTime          || '06:00 AM',
         closingTime:          editGround.closingTime          || '06:00 PM',
         level:                (editGround.level && editGround.level !== 'null') ? editGround.level : '',
@@ -336,6 +339,7 @@ function GroundFormModal({ show, editGround, venues, sports, categories, academy
       name:                 form.name.trim(),
       description:          form.description.trim(),
       coach:                form.coach.trim(),
+      price:                form.price,
       openingTime:          form.openingTime,
       closingTime:          form.closingTime,
       level:                form.level,
@@ -432,6 +436,7 @@ function GroundFormModal({ show, editGround, venues, sports, categories, academy
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <Field label="Ground Name *" k="name"  ph="e.g. Cricket Ground 1" {...fieldProps} />
               <Field label="Coach"         k="coach" ph="Coach name"             {...fieldProps} />
+              <Field label="Price (₹)"     k="price" type="number" ph="500"      {...fieldProps} />
               <div className="sm:col-span-2">
                 <label className={labelCls}>Description</label>
                 <textarea rows={2} value={form.description}
@@ -544,22 +549,21 @@ export default function SportGrounds() {
 
   useEffect(() => { fetchAll(); loadDropdowns() }, [])
 
-// AFTER:
-const fetchAll = async () => {
-  setLoading(true)
-  try {
-    const res = await getGrounds()  // API call to fetch all grounds
-    const all = toList(res)
-    const coachingOnly = all.filter(g =>
-      getName(g.categoryId).toLowerCase() === 'games'
-    )
-    setGrounds(coachingOnly)  // ← sirf coaching wale set honge
-  } catch (err) {
-    toast(err.message || 'Failed to load games', 'error')
-  } finally {
-    setLoading(false)
+  const fetchAll = async () => {
+    setLoading(true)
+    try {
+      const res = await getGrounds()
+      const all = toList(res)
+      const coachingOnly = all.filter(g =>
+        getName(g.categoryId).toLowerCase() === 'games'
+      )
+      setGrounds(coachingOnly)
+    } catch (err) {
+      toast(err.message || 'Failed to load games', 'error')
+    } finally {
+      setLoading(false)
+    }
   }
-}
 
   const loadDropdowns = async () => {
     const [vR, sR, cR, aR] = await Promise.allSettled([
@@ -723,14 +727,14 @@ const fetchAll = async () => {
             <table className="w-full text-sm">
               <thead className="bg-neutral-50 border-b border-neutral-200">
                 <tr>
-                  {['#','Image','Name','Venue','Sport','Category','Academy','Coach','Timing','Players','Date','Status','Actions'].map(h => (
+                  {['#','Image','Name','Venue','Sport','Category','Academy','Coach','Price','Timing','Players','Date','Status','Actions'].map(h => (
                     <th key={h} className="text-left px-4 py-3 text-[11px] text-neutral-400 font-semibold whitespace-nowrap">{h}</th>
                   ))}
                 </tr>
               </thead>
               <tbody>
                 {filtered.length === 0 ? (
-                  <tr><td colSpan={13} className="text-center py-14 text-neutral-400 text-sm">
+                  <tr><td colSpan={14} className="text-center py-14 text-neutral-400 text-sm">
                     <MapPin className="h-7 w-7 mx-auto mb-2 text-neutral-200" />No grounds found
                   </td></tr>
                 ) : filtered.map((g, i) => {
@@ -778,6 +782,11 @@ const fetchAll = async () => {
                           <User className="h-3 w-3 text-neutral-400" />
                           <span className="text-xs capitalize text-neutral-600">{g.coach || '—'}</span>
                         </div>
+                      </td>
+                      <td className="px-4 py-3">
+                        <span className="text-xs font-semibold text-green-700">
+                          {g.price ? `₹${g.price}` : '—'}
+                        </span>
                       </td>
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-1">
@@ -847,6 +856,9 @@ const fetchAll = async () => {
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-bold text-black truncate">{g.name}</p>
                       <p className="text-[10px] text-neutral-400 mt-0.5">{g.sportDateDisplay || '—'}</p>
+                      {g.price && (
+                        <p className="text-xs font-semibold text-green-700 mt-0.5">₹{g.price}</p>
+                      )}
                     </div>
                     <button onClick={() => handleToggle(g)} disabled={togglingId===id}
                       className={`ml-2 text-[10px] px-2 py-0.5 rounded-full font-medium cursor-pointer disabled:opacity-60 shrink-0
