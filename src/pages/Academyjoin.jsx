@@ -1,6 +1,7 @@
 // AcademyJoin.jsx
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { getAcademyManagers, registerAcademy, createLocation, deleteUser, getLocation } from '../api/api'
+import api from '../api/api'   // ← for updateUser (PUT /users/update?userId=...)
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 const AVATAR_COLORS = [
@@ -20,6 +21,14 @@ const LOGIN_TYPE_STYLES = {
   apple:    'bg-gray-100 text-gray-700',
 }
 const ROLES = ['academy_manager', 'coach', 'admin', 'user']
+
+// ─── Update User API ──────────────────────────────────────────────────────────
+/**
+ * PUT /users/update?userId=<id>
+ * Body: FormData or JSON with fields to update
+ */
+const updateUser = (userId, data) =>
+  api.put(`/users/update`, data, { params: { userId } })
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 const initials    = (name = '') => name.split(' ').map((w) => w[0]).join('').slice(0, 2).toUpperCase()
@@ -213,168 +222,256 @@ function ViewModal({ user, location, onClose }) {
   )
 }
 
-// ─── UserProfile Side Panel ───────────────────────────────────────────────────
-function UserProfile({ user, location, onClose }) {
-  if (!user) {
-    return (
-      <div className="bg-white border border-neutral-200 rounded-xl p-6 flex flex-col items-center justify-center min-h-[260px] text-neutral-300">
-        <div className="text-4xl mb-2">🏫</div>
-        <p className="text-sm text-center">Select a manager<br />to view their profile</p>
-      </div>
-    )
-  }
-  const boolBadge = (val) => (
-    <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${val ? 'bg-emerald-100 text-emerald-700' : 'bg-neutral-100 text-neutral-500'}`}>
-      {val ? 'Yes' : 'No'}
-    </span>
-  )
-  return (
-    <div className="bg-white border border-neutral-200 rounded-xl p-5 sticky top-4">
-      <div className="flex items-start justify-between mb-4">
-        <div className="flex flex-col items-center gap-1 w-full">
-          {user.image && <div className="w-full h-20 rounded-lg overflow-hidden mb-2"><img src={user.image} alt="Academy" className="w-full h-full object-cover" /></div>}
-          <div className={`w-14 h-14 rounded-full flex items-center justify-center text-lg font-semibold ${avatarColor(user._id)}`}>{initials(user.name)}</div>
-          <p className="text-base font-semibold text-black mt-1">{user.name}</p>
-          <p className="text-xs text-neutral-400">{user.email}</p>
-          <div className="flex gap-1.5 mt-1 flex-wrap justify-center">
-            <Badge label={user.role} className={ROLE_STYLES[user.role] || 'bg-neutral-100 text-neutral-700'} />
-            {user.loginType && <Badge label={user.loginType} className={LOGIN_TYPE_STYLES[user.loginType] || 'bg-neutral-100 text-neutral-700'} />}
-          </div>
-        </div>
-        <button onClick={onClose} className="text-neutral-300 hover:text-neutral-500 text-lg leading-none">×</button>
-      </div>
-      <div className="grid grid-cols-2 gap-2 mb-4">
-        {[
-          { label: 'Online',         value: user.isOnline },
-          { label: 'Active',         value: user.isActive },
-          { label: 'Logged In',      value: user.isLoggedIn },
-          { label: 'Email Verified', value: user.isEmailVerified },
-        ].map(({ label, value }) => (
-          <div key={label} className="bg-neutral-50 rounded-lg p-3">
-            <p className="text-xs text-neutral-400 mb-1">{label}</p>
-            {boolBadge(value)}
-          </div>
-        ))}
-      </div>
-      <hr className="border-neutral-100 mb-3" />
-      {[
-        { label: 'Academy Name',  value: user.academyName },
-        { label: 'Description',   value: user.description },
-        { label: 'Opening Time',  value: user.openingTime },
-        { label: 'Closing Time',  value: user.closingTime },
-        { label: 'Mobile',        value: user.mobile },
-        { label: 'Last Activity', value: formatDate(user.lastActivity) },
-        { label: 'Joined',        value: formatDate(user.createdAt) },
-      ].map(({ label, value }) => value ? (
-        <div key={label} className="flex justify-between items-center text-sm py-1.5 border-b border-neutral-100 last:border-0">
-          <span className="text-neutral-400 text-xs">{label}</span>
-          <span className="font-medium text-black text-xs text-right max-w-[140px] truncate">{value}</span>
-        </div>
-      ) : null)}
+// ─── EDIT MODAL ───────────────────────────────────────────────────────────────
+function EditModal({ user, onClose, onSaved }) {
+  if (!user) return null
 
-      {/* ── Location block in side panel ── */}
-      {location && (
-        <>
-          <hr className="border-neutral-100 my-3" />
-          <p className="text-xs font-semibold text-neutral-400 uppercase tracking-wide mb-2">📍 Location</p>
-          {[
-            { label: 'City',     value: location.city },
-            { label: 'District', value: location.district },
-            { label: 'State',    value: location.state },
-            { label: 'Zipcode',  value: location.zipcode },
-            { label: 'Coords',   value: location.coordinates?.length === 2 ? `${location.coordinates[0]?.toFixed(4)}, ${location.coordinates[1]?.toFixed(4)}` : null },
-          ].map(({ label, value }) => value ? (
-            <div key={label} className="flex justify-between items-center text-sm py-1.5 border-b border-neutral-100 last:border-0">
-              <span className="text-neutral-400 text-xs">{label}</span>
-              <span className="font-medium text-black text-xs text-right max-w-[140px] truncate">{value}</span>
+  const [form,        setForm]        = useState({
+    name:         user.name        || '',
+    email:        user.email       || '',
+    mobile:       user.mobile      || '',
+    academyName:  user.academyName || '',
+    description:  user.description || '',
+    openingTime:  user.openingTime || '',
+    closingTime:  user.closingTime || '',
+  })
+  const [imageFile,    setImageFile]    = useState(null)
+  const [imagePreview, setImagePreview] = useState(user.image || '')
+  const [loading,      setLoading]      = useState(false)
+  const [apiError,     setApiError]     = useState('')
+  const fileRef = useRef(null)
+
+  const handleChange = (e) => {
+    const { name, value } = e.target
+    setForm((prev) => ({ ...prev, [name]: value }))
+  }
+
+  const handleImageChange = (e) => {
+    const f = e.target.files?.[0]
+    if (f) { setImageFile(f); setImagePreview(URL.createObjectURL(f)) }
+  }
+
+  const handleSubmit = async (e) => {
+    e.preventDefault()
+    setApiError('')
+    setLoading(true)
+    try {
+      // Build FormData so image upload works alongside text fields
+      const fd = new FormData()
+      Object.entries(form).forEach(([k, v]) => { if (v !== '') fd.append(k, v) })
+      if (imageFile) fd.append('image', imageFile)
+
+      await updateUser(user._id, fd)
+      onSaved()
+      onClose()
+    } catch (err) {
+      setApiError(err.message || 'Update failed.')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-xl max-h-[92vh] overflow-y-auto">
+
+        {/* Header */}
+        <div className="flex items-center justify-between px-6 py-4 border-b border-neutral-100 sticky top-0 bg-white z-10">
+          <div className="flex items-center gap-3">
+            <div className={`w-9 h-9 rounded-full flex items-center justify-center text-sm font-semibold ${avatarColor(user._id)}`}>
+              {initials(user.name)}
             </div>
-          ) : null)}
-        </>
-      )}
+            <div>
+              <p className="text-sm font-bold text-black">Edit Manager</p>
+              <p className="text-xs text-neutral-400 font-mono">{user._id}</p>
+            </div>
+          </div>
+          <button onClick={onClose}
+            className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-neutral-100 text-neutral-400 hover:text-neutral-700 transition-colors text-xl leading-none">
+            ×
+          </button>
+        </div>
+
+        <form onSubmit={handleSubmit} noValidate className="p-6 space-y-5">
+          <ErrorBanner message={apiError} onClose={() => setApiError('')} />
+
+          {/* Image */}
+          <div>
+            <p className="text-xs font-semibold text-neutral-400 uppercase tracking-wide mb-3">Profile / Academy Image</p>
+            <div className="flex items-center gap-4">
+              <div
+                onClick={() => fileRef.current?.click()}
+                className="w-20 h-20 rounded-xl border-2 border-dashed border-neutral-200 hover:border-purple-300 cursor-pointer overflow-hidden bg-neutral-50 flex items-center justify-center flex-shrink-0 transition-colors relative group">
+                {imagePreview
+                  ? <img src={imagePreview} alt="preview" className="w-full h-full object-cover" />
+                  : <span className="text-2xl text-neutral-300">+</span>}
+                <div className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center rounded-xl">
+                  <span className="text-white text-[10px] font-medium">Change</span>
+                </div>
+              </div>
+              <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handleImageChange} />
+              <div className="text-xs text-neutral-400">
+                <p className="font-medium text-neutral-600 mb-1">Upload new image</p>
+                <p>PNG, JPG up to 10MB</p>
+                {imageFile && <p className="text-purple-500 mt-1 truncate max-w-[180px]">📎 {imageFile.name}</p>}
+              </div>
+            </div>
+          </div>
+
+          {/* Personal Info */}
+          <div>
+            <p className="text-xs font-semibold text-neutral-400 uppercase tracking-wide mb-3">Personal Info</p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <FieldGroup label="Full Name">
+                <TextInput name="name" value={form.name} onChange={handleChange} placeholder="Full name" />
+              </FieldGroup>
+              <FieldGroup label="Email">
+                <TextInput name="email" type="email" value={form.email} onChange={handleChange} placeholder="Email" />
+              </FieldGroup>
+              <FieldGroup label="Mobile">
+                <TextInput name="mobile" type="tel" value={form.mobile} onChange={handleChange} placeholder="Mobile" />
+              </FieldGroup>
+            </div>
+          </div>
+
+          {/* Academy Info */}
+          <div>
+            <p className="text-xs font-semibold text-neutral-400 uppercase tracking-wide mb-3">Academy Info</p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <FieldGroup label="Academy Name">
+                <TextInput name="academyName" value={form.academyName} onChange={handleChange} placeholder="Academy name" />
+              </FieldGroup>
+              <FieldGroup label="Description">
+                <TextInput name="description" value={form.description} onChange={handleChange} placeholder="Short description" />
+              </FieldGroup>
+              <FieldGroup label="Opening Time">
+                <TextInput name="openingTime" value={form.openingTime} onChange={handleChange} placeholder="e.g. 06:00 AM" />
+              </FieldGroup>
+              <FieldGroup label="Closing Time">
+                <TextInput name="closingTime" value={form.closingTime} onChange={handleChange} placeholder="e.g. 10:00 PM" />
+              </FieldGroup>
+            </div>
+          </div>
+
+          {/* Footer */}
+          <div className="flex gap-3 pt-2 border-t border-neutral-100">
+            <button type="submit" disabled={loading}
+              className="flex items-center gap-2 bg-black text-white text-sm font-medium px-5 py-2 rounded-lg hover:bg-neutral-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+              {loading && <div className="w-3.5 h-3.5 border-2 border-white/40 border-t-white rounded-full animate-spin" />}
+              {loading ? 'Saving…' : 'Save Changes'}
+            </button>
+            <button type="button" onClick={onClose}
+              className="text-sm text-neutral-400 hover:text-neutral-600 transition-colors px-4 py-2 rounded-lg hover:bg-neutral-100">
+              Cancel
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  )
+}
+
+// ─── DELETE CONFIRM MODAL ─────────────────────────────────────────────────────
+function DeleteConfirmModal({ user, onConfirm, onCancel, loading }) {
+  if (!user) return null
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6">
+        <div className="flex items-center gap-3 mb-4">
+          <div className="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center flex-shrink-0">
+            <span className="text-red-500 text-lg">🗑️</span>
+          </div>
+          <div>
+            <p className="text-sm font-bold text-black">Delete Manager</p>
+            <p className="text-xs text-neutral-400">This action cannot be undone</p>
+          </div>
+        </div>
+        <div className="bg-neutral-50 rounded-xl p-3 mb-5 flex items-center gap-3">
+          <Avatar name={user.name} id={user._id} />
+          <div>
+            <p className="text-sm font-medium text-black">{user.name}</p>
+            <p className="text-xs text-neutral-400">{user.email}</p>
+          </div>
+        </div>
+        <div className="flex gap-3">
+          <button onClick={onConfirm} disabled={loading}
+            className="flex-1 flex items-center justify-center gap-2 bg-red-500 text-white text-sm font-medium px-4 py-2 rounded-lg hover:bg-red-600 transition-colors disabled:opacity-50">
+            {loading && <div className="w-3.5 h-3.5 border-2 border-white/40 border-t-white rounded-full animate-spin" />}
+            {loading ? 'Deleting…' : 'Yes, Delete'}
+          </button>
+          <button onClick={onCancel}
+            className="flex-1 text-sm text-neutral-500 hover:text-neutral-700 transition-colors px-4 py-2 rounded-lg border border-neutral-200 hover:bg-neutral-50">
+            Cancel
+          </button>
+        </div>
+      </div>
     </div>
   )
 }
 
 // ─── UserRow ─────────────────────────────────────────────────────────────────
-function UserRow({ user, location, locLoading, selected, onSelect, onDelete, onView }) {
+function UserRow({ user, index, location, locLoading, onDelete, onView, onEdit }) {
   const loc = location
 
   return (
-    <tr
-      onClick={() => onSelect(user)}
-      className={`border-b border-neutral-100 cursor-pointer transition-colors ${selected ? 'bg-purple-50' : 'hover:bg-neutral-50'}`}
-    >
+    <tr className="border-b border-neutral-100 hover:bg-neutral-50 transition-colors">
+
+      {/* S.No */}
+      <td className="px-4 py-3 text-neutral-400 text-xs">{index + 1}</td>
+
       {/* Manager */}
       <td className="px-4 py-3">
         <div className="flex items-center gap-2">
           <Avatar name={user.name} id={user._id} />
           <div>
             <p className="text-sm capitalize font-medium text-black leading-none">{user.name}</p>
-            <p className="text-xs text-neutral-400 mt-0.5">{user.email}</p>
+            {/* <p className="text-xs text-neutral-400 mt-0.5">{user.email}</p> */}
           </div>
         </div>
       </td>
-      {/* Mobile */}
-      <td className="px-4 py-3 text-xs text-neutral-500">{user.mobile || '—'}</td>
-      {/* Role */}
-      <td className="px-4 py-3">
-        <Badge label={user.role} className={ROLE_STYLES[user.role] || 'bg-neutral-100 text-neutral-700'} />
+
+      {/* Contact */}
+      <td className="px-4 py-3 text-xs text-neutral-500">
+        <div>
+          <p>{user.mobile || '—'}</p>
+          <p className="text-xs text-neutral-400 mt-0.5">{user.email}</p>
+        </div>
       </td>
-      {/* Login */}
-      {/* <td className="px-4 py-3">
-        <Badge label={user.loginType || '—'} className={LOGIN_TYPE_STYLES[user.loginType] || 'bg-neutral-100 text-neutral-700'} />
-      </td> */}
+
       {/* Academy */}
       <td className="px-4 py-3 max-w-[160px]">
         <p className="text-xs font-medium text-neutral-700 truncate">{user.academyName || '—'}</p>
         {user.description && <p className="text-xs text-neutral-400 truncate mt-0.5">{user.description}</p>}
       </td>
+
       {/* Hours */}
       <td className="px-4 py-3 text-xs text-neutral-500 whitespace-nowrap">
         {user.openingTime && user.closingTime ? `${user.openingTime} – ${user.closingTime}` : '—'}
       </td>
-      {/* Online */}
-      {/* <td className="px-4 py-3">
-        <div className="flex items-center gap-1.5">
-          <StatusDot active={user.isOnline} />
-          <span className="text-xs text-neutral-500">{user.isOnline ? 'Online' : 'Offline'}</span>
-        </div>
-      </td> */}
+
       {/* Status */}
-      <td className="px-4 py-3">
+      {/* <td className="px-4 py-3">
         <div className="flex items-center gap-1.5">
           <StatusDot active={user.isActive} />
           <span className="text-xs text-neutral-500">{user.isActive ? 'Active' : 'Inactive'}</span>
         </div>
-      </td>
-      {/* Subscribed */}
-      {/* <td className="px-4 py-3">
-        <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${user.isSubscribed ? 'bg-emerald-100 text-emerald-700' : 'bg-neutral-100 text-neutral-500'}`}>
-          {user.isSubscribed ? 'Yes' : 'No'}
-        </span>
       </td> */}
+
       {/* Image */}
       <td className="px-4 py-3">
         {user.image
           ? <img src={user.image} alt="academy" className="w-8 h-8 rounded-md object-cover border border-neutral-200" />
           : <span className="text-neutral-300 text-xs">—</span>}
       </td>
-      {/* Screen */}
-      {/* <td className="px-4 py-3 text-xs text-neutral-400 whitespace-nowrap">
-        {user.currentScreen
-          ? <span className="bg-neutral-100 text-neutral-600 px-2 py-0.5 rounded-full text-xs">{user.currentScreen.replace(/_/g, ' ').toLowerCase()}</span>
-          : '—'}
-      </td> */}
+
       {/* Joined */}
       <td className="px-4 py-3 text-xs text-neutral-400 whitespace-nowrap">{formatDate(user.createdAt)}</td>
-      {/* Last Active */}
-      <td className="px-4 py-3 text-xs text-neutral-400 whitespace-nowrap">{formatDate(user.lastActivity)}</td>
+
+   
 
       {/* ── Location columns ── */}
       <td className="px-4 py-3 text-xs text-neutral-500 whitespace-nowrap">
-        {locLoading
-          ? <span className="text-neutral-300">…</span>
-          : loc?.city || '—'}
+        {locLoading ? <span className="text-neutral-300">…</span> : loc?.city || '—'}
       </td>
       <td className="px-4 py-3 text-xs text-neutral-500 whitespace-nowrap">
         {locLoading ? <span className="text-neutral-300">…</span> : loc?.district || '—'}
@@ -399,28 +496,25 @@ function UserRow({ user, location, locLoading, selected, onSelect, onDelete, onV
             ? `${loc.coordinates[0]?.toFixed(4)}, ${loc.coordinates[1]?.toFixed(4)}`
             : '—'}
       </td>
-      <td className="px-4 py-3">
-        {locLoading
-          ? <span className="text-neutral-300 text-xs">…</span>
-          : loc != null
-            ? <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${loc.isVenueAddress ? 'bg-purple-100 text-purple-700' : 'bg-neutral-100 text-neutral-500'}`}>
-                {loc.isVenueAddress ? 'Venue' : 'User'}
-              </span>
-            : <span className="text-neutral-300 text-xs">—</span>}
-      </td>
 
       {/* Actions */}
       <td className="px-4 py-3">
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1.5">
           <button
-            onClick={(e) => { e.stopPropagation(); onView(user) }}
-            className="text-xs text-purple-500 hover:text-purple-700 font-medium transition-colors bg-purple-50 hover:bg-purple-100 px-2.5 py-1 rounded-lg"
+            onClick={() => onView(user)}
+            className="text-xs text-blue-500 hover:text-blue-700 font-medium transition-colors bg-blue-50 hover:bg-blue-100 px-2.5 py-1 rounded-lg whitespace-nowrap"
           >
             View
           </button>
           <button
-            onClick={(e) => { e.stopPropagation(); onDelete(user._id) }}
-            className="text-xs text-red-400 hover:text-red-600 transition-colors"
+            onClick={() => onEdit(user)}
+            className="text-xs text-purple-500 hover:text-purple-700 font-medium transition-colors bg-purple-50 hover:bg-purple-100 px-2.5 py-1 rounded-lg whitespace-nowrap"
+          >
+            Edit
+          </button>
+          <button
+            onClick={() => onDelete(user)}
+            className="text-xs text-red-400 hover:text-red-600 font-medium transition-colors bg-red-50 hover:bg-red-100 px-2.5 py-1 rounded-lg whitespace-nowrap"
           >
             Delete
           </button>
@@ -430,16 +524,18 @@ function UserRow({ user, location, locLoading, selected, onSelect, onDelete, onV
   )
 }
 
-// ─── TAB 1: Academy Managers Table (with Locations) ──────────────────────────
+// ─── TAB 1: Academy Managers Table ───────────────────────────────────────────
 function AcademyManagersTab() {
-  const [users,       setUsers]       = useState([])
-  const [locations,   setLocations]   = useState({})
-  const [locLoading,  setLocLoading]  = useState({})
-  const [search,      setSearch]      = useState('')
-  const [selected,    setSelected]    = useState(null)
-  const [viewUser,    setViewUser]    = useState(null)
-  const [loading,     setLoading]     = useState(true)
-  const [error,       setError]       = useState('')
+  const [users,           setUsers]           = useState([])
+  const [locations,       setLocations]       = useState({})
+  const [locLoading,      setLocLoading]      = useState({})
+  const [search,          setSearch]          = useState('')
+  const [viewUser,        setViewUser]        = useState(null)
+  const [editUser,        setEditUser]        = useState(null)
+  const [deleteTarget,    setDeleteTarget]    = useState(null)
+  const [deleteLoading,   setDeleteLoading]   = useState(false)
+  const [loading,         setLoading]         = useState(true)
+  const [error,           setError]           = useState('')
 
   const fetchUsers = useCallback(async () => {
     setLoading(true); setError('')
@@ -503,19 +599,30 @@ function AcademyManagersTab() {
     })
   }, [fetchUsers, fetchLocations])
 
-  const handleDelete = async (id) => {
+  // ── Delete ──────────────────────────────────────────────────────────────────
+  const handleDeleteConfirm = async () => {
+    if (!deleteTarget) return
+    setDeleteLoading(true)
     try {
-      await deleteUser(id)
-      if (selected?._id === id) setSelected(null)
-      if (viewUser?._id  === id) setViewUser(null)
+      await deleteUser(deleteTarget._id)
+      if (viewUser?._id === deleteTarget._id) setViewUser(null)
+      if (editUser?._id === deleteTarget._id) setEditUser(null)
+      setDeleteTarget(null)
       const normalized = await fetchUsers()
       if (normalized.length) fetchLocations(normalized)
     } catch (err) {
       setError(err.message || 'Failed to delete user')
+    } finally {
+      setDeleteLoading(false)
     }
   }
 
-  const handleSelect = (user) => setSelected((prev) => prev?._id === user._id ? null : user)
+  // ── After edit saved ────────────────────────────────────────────────────────
+  const handleEditSaved = () => {
+    fetchUsers().then((normalized) => {
+      if (normalized.length) fetchLocations(normalized)
+    })
+  }
 
   const filtered = users.filter((u) => {
     const q   = search.toLowerCase()
@@ -534,14 +641,15 @@ function AcademyManagersTab() {
   })
 
   const TABLE_HEADERS = [
-    'Manager', 'Mobile', 'Role',  'Academy', 'Hours',
-    'Status',  'Image',  'Joined', 'Last Active',
-    'City', 'District', 'State', 'Zipcode', 'Formatted Address', 'Coordinates', 'Loc Type',
-    '',
+    'S.No', 'Manager', 'Contact', 'Academy', 'Hours',
+    'Image', 'Joined', 
+    'City', 'District', 'State', 'Zipcode', 'Formatted Address', 'Coordinates',
+    'Actions',
   ]
 
   return (
     <div>
+      {/* Modals */}
       {viewUser && (
         <ViewModal
           user={viewUser}
@@ -549,14 +657,28 @@ function AcademyManagersTab() {
           onClose={() => setViewUser(null)}
         />
       )}
+      {editUser && (
+        <EditModal
+          user={editUser}
+          onClose={() => setEditUser(null)}
+          onSaved={handleEditSaved}
+        />
+      )}
+      {deleteTarget && (
+        <DeleteConfirmModal
+          user={deleteTarget}
+          loading={deleteLoading}
+          onConfirm={handleDeleteConfirm}
+          onCancel={() => setDeleteTarget(null)}
+        />
+      )}
+
       <ErrorBanner message={error} onClose={() => setError('')} />
 
       {!loading && (
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
-          <StatCard label="Total Managers"  value={users.length} />
-        
-          <StatCard label="Active"          value={users.filter(u => u.isActive).length} />
-         
+          <StatCard label="Total Managers" value={users.length} />
+          <StatCard label="Active"         value={users.filter(u => u.isActive).length} />
         </div>
       )}
 
@@ -570,72 +692,53 @@ function AcademyManagersTab() {
         />
       </div>
 
-      <div className="flex gap-4 items-start">
-        <div className="flex-1 min-w-0" style={{ overflowX: 'auto' }}>
-          <div className="bg-white rounded-xl border border-neutral-200" style={{ minWidth: 1700 }}>
-            <table className="text-sm w-full">
-              <thead className="bg-neutral-50 border-b border-neutral-200">
+      {/* Full-width table — no side panel */}
+      <div style={{ overflowX: 'auto' }}>
+        <div className="bg-white rounded-xl border border-neutral-200" style={{ minWidth: 1700 }}>
+          <table className="text-sm w-full">
+            <thead className="bg-neutral-50 border-b border-neutral-200">
+              <tr>
+                {TABLE_HEADERS.map((h, i) => (
+                  <th key={i} className="text-left px-4 py-3 text-neutral-400 font-medium text-xs whitespace-nowrap">
+                    {h}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {loading ? (
                 <tr>
-                  {TABLE_HEADERS.map((h, i) => (
-                    <th key={i} className="text-left px-4 py-3 text-neutral-400 font-medium text-xs whitespace-nowrap">
-                      {h}
-                    </th>
-                  ))}
+                  <td colSpan={TABLE_HEADERS.length} className="text-center py-12 text-neutral-400">
+                    <div className="flex items-center justify-center gap-2">
+                      <div className="w-4 h-4 border-2 border-purple-300 border-t-purple-600 rounded-full animate-spin" />
+                      Loading managers…
+                    </div>
+                  </td>
                 </tr>
-              </thead>
-              <tbody>
-                {loading ? (
-                  <tr>
-                    <td colSpan={TABLE_HEADERS.length} className="text-center py-12 text-neutral-400">
-                      <div className="flex items-center justify-center gap-2">
-                        <div className="w-4 h-4 border-2 border-purple-300 border-t-purple-600 rounded-full animate-spin" />
-                        Loading managers…
-                      </div>
-                    </td>
-                  </tr>
-                ) : filtered.length === 0 ? (
-                  <tr>
-                    <td colSpan={TABLE_HEADERS.length} className="text-center py-12 text-neutral-400">
-                      No academy managers found
-                    </td>
-                  </tr>
-                ) : (
-                  filtered.map((u) => (
-                    <UserRow
-                      key={u._id}
-                      user={u}
-                      location={locations[u._id] ?? null}
-                      locLoading={locLoading[u._id] ?? false}
-                      selected={selected?._id === u._id}
-                      onSelect={handleSelect}
-                      onDelete={handleDelete}
-                      onView={setViewUser}
-                    />
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
-        </div>
-
-        <div className="w-72 flex-shrink-0 hidden lg:block">
-          <UserProfile
-            user={selected}
-            location={selected ? (locations[selected._id] ?? null) : null}
-            onClose={() => setSelected(null)}
-          />
+              ) : filtered.length === 0 ? (
+                <tr>
+                  <td colSpan={TABLE_HEADERS.length} className="text-center py-12 text-neutral-400">
+                    No academy managers found
+                  </td>
+                </tr>
+              ) : (
+                filtered.map((u, i) => (
+                  <UserRow
+                    key={u._id}
+                    user={u}
+                    index={i}
+                    location={locations[u._id] ?? null}
+                    locLoading={locLoading[u._id] ?? false}
+                    onView={setViewUser}
+                    onEdit={setEditUser}
+                    onDelete={setDeleteTarget}
+                  />
+                ))
+              )}
+            </tbody>
+          </table>
         </div>
       </div>
-
-      {selected && (
-        <div className="mt-4 lg:hidden">
-          <UserProfile
-            user={selected}
-            location={locations[selected._id] ?? null}
-            onClose={() => setSelected(null)}
-          />
-        </div>
-      )}
     </div>
   )
 }
@@ -806,7 +909,6 @@ const EMPTY_LOCATION = {
 }
 
 function CreateLocationStep({ registeredAcademy, onSuccess, onSkip }) {
-  // ✅ FIX: userId = user._id (NOT academy._id)
   const userId      = registeredAcademy?.user?._id     || ''
   const academyName = registeredAcademy?.academy?.name || ''
   const userName    = registeredAcademy?.user?.name    || ''
@@ -817,11 +919,8 @@ function CreateLocationStep({ registeredAcademy, onSuccess, onSkip }) {
   const [loading,        setLoading]        = useState(false)
   const [apiError,       setApiError]       = useState('')
 
-  // ── Logo (ogc / image) ──────────────────────────────────────────────────
   const [logoFile,    setLogoFile]    = useState(null)
   const [logoPreview, setLogoPreview] = useState('')
-
-  // ── Banners ─────────────────────────────────────────────────────────────
   const [bannerFiles, setBannerFiles] = useState([])
 
   console.log('[CreateLocationStep] userId (user._id):', userId, '| registeredAcademy:', registeredAcademy)
@@ -833,7 +932,6 @@ function CreateLocationStep({ registeredAcademy, onSuccess, onSkip }) {
     setLocation((prev) => ({ ...prev, coordinates: coords }))
   }
 
-  // ── Logo handlers ────────────────────────────────────────────────────────
   const handleLogoChange = (e) => {
     const f = e.target.files?.[0]
     if (f) { setLogoFile(f); setLogoPreview(URL.createObjectURL(f)) }
@@ -843,7 +941,6 @@ function CreateLocationStep({ registeredAcademy, onSuccess, onSkip }) {
     setLogoFile(null); setLogoPreview('')
   }
 
-  // ── Banner handlers ──────────────────────────────────────────────────────
   const handleAddBanners = (files) => {
     const newEntries = files.map((f) => ({ file: f, preview: URL.createObjectURL(f) }))
     setBannerFiles((prev) => [...prev, ...newEntries])
@@ -874,29 +971,18 @@ function CreateLocationStep({ registeredAcademy, onSuccess, onSkip }) {
 
   const buildPayload = () => {
     const hasCoords = location.coordinates?.[0] !== '' && location.coordinates?.[1] !== ''
-
-    // ✅ Using FormData so files (logo + banners) can be sent
     const formData = new FormData()
-
-    // ✅ userId = user._id
     formData.append('userId', userId)
     formData.append('isVenueAddress', location.isVenueAddress)
-
     if (hasCoords) {
       formData.append('coordinates[]', parseFloat(location.coordinates[0]))
       formData.append('coordinates[]', parseFloat(location.coordinates[1]))
     }
-
     ;['buildingNumber', 'name', 'address', 'city', 'district', 'zipcode', 'state', 'area', 'country'].forEach((k) => {
       if (location[k]?.trim()) formData.append(k, location[k].trim())
     })
-
-    // ── logo / ogc image ──
     if (logoFile) formData.append('image', logoFile)
-
-    // ── multiple banners ──
     bannerFiles.forEach((b) => formData.append('banners', b.file))
-
     return formData
   }
 
@@ -922,7 +1008,6 @@ function CreateLocationStep({ registeredAcademy, onSuccess, onSkip }) {
 
   return (
     <div>
-      {/* ── Success banner ── */}
       <div className="mb-5 bg-emerald-50 border border-emerald-200 rounded-xl px-5 py-4">
         <div className="flex items-start gap-3">
           <div className="w-8 h-8 rounded-full bg-emerald-500 flex items-center justify-center flex-shrink-0 mt-0.5">
@@ -948,8 +1033,6 @@ function CreateLocationStep({ registeredAcademy, onSuccess, onSkip }) {
       <div className="flex gap-6 items-start">
         <div className="flex-1 min-w-0">
           <form onSubmit={handleSubmit} noValidate>
-
-            {/* ── Location Details ── */}
             <div className="bg-white rounded-xl border border-neutral-200 p-5 mb-4">
               <div className="flex items-center justify-between mb-4">
                 <p className="text-xs font-semibold text-neutral-400 uppercase tracking-wide">📍 Location Details</p>
@@ -972,8 +1055,6 @@ function CreateLocationStep({ registeredAcademy, onSuccess, onSkip }) {
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-
-                {/* ── userId auto-filled (user._id) ── */}
                 <div className="sm:col-span-2">
                   <FieldGroup label="User ID (user._id — auto-filled from registration)">
                     <div className="flex items-center gap-2">
@@ -1060,7 +1141,6 @@ function CreateLocationStep({ registeredAcademy, onSuccess, onSkip }) {
               </div>
             </div>
 
-            {/* ── Logo / OGC Image ── */}
             <div className="bg-white rounded-xl border border-neutral-200 p-5 mb-4">
               <p className="text-xs font-semibold text-neutral-400 uppercase tracking-wide mb-4">📸 Location Logo / Image (ogc)</p>
               <ImageUploadBox
@@ -1071,7 +1151,6 @@ function CreateLocationStep({ registeredAcademy, onSuccess, onSkip }) {
               />
             </div>
 
-            {/* ── Banners ── */}
             <div className="bg-white rounded-xl border border-neutral-200 p-5 mb-5">
               <div className="flex items-start justify-between mb-1">
                 <p className="text-xs font-semibold text-neutral-400 uppercase tracking-wide">🖼️ Location Banners</p>
@@ -1081,9 +1160,7 @@ function CreateLocationStep({ registeredAcademy, onSuccess, onSkip }) {
                   </span>
                 )}
               </div>
-              <p className="text-xs text-neutral-400 mb-4">
-                Upload multiple banner images for this location (optional)
-              </p>
+              <p className="text-xs text-neutral-400 mb-4">Upload multiple banner images for this location (optional)</p>
               <BannersUploadBox
                 banners={bannerFiles}
                 onAdd={handleAddBanners}
@@ -1109,20 +1186,16 @@ function CreateLocationStep({ registeredAcademy, onSuccess, onSkip }) {
         <div className="w-72 flex-shrink-0 hidden lg:block">
           <div className="bg-white border border-neutral-200 rounded-xl p-5 sticky top-4">
             <p className="text-xs font-medium text-neutral-400 mb-4 uppercase tracking-wide">Location Preview</p>
-
-            {/* Logo preview */}
             {logoPreview && (
               <div className="w-full h-24 rounded-xl overflow-hidden mb-3 bg-neutral-100">
                 <img src={logoPreview} alt="Logo" className="w-full h-full object-cover" />
               </div>
             )}
-
             <div className="bg-neutral-50 rounded-lg p-3 mb-4">
               <p className="text-xs text-neutral-400 mb-0.5">Academy (userId = user._id)</p>
               <p className="text-sm font-semibold text-black">{academyName || '—'}</p>
               <p className="text-xs text-neutral-400 mt-0.5 font-mono text-[10px] truncate">{userId || '—'}</p>
             </div>
-
             {location.coordinates?.[0] && location.coordinates?.[1] && (
               <div className="bg-blue-50 border border-blue-100 rounded-lg p-3 mb-3">
                 <p className="text-xs text-blue-500 mb-1 font-medium">📌 Coordinates</p>
@@ -1131,7 +1204,6 @@ function CreateLocationStep({ registeredAcademy, onSuccess, onSkip }) {
                 </p>
               </div>
             )}
-
             <hr className="border-neutral-100 mb-3" />
             {[
               { label: 'Building', value: location.buildingNumber },
@@ -1149,20 +1221,15 @@ function CreateLocationStep({ registeredAcademy, onSuccess, onSkip }) {
                 <span className="font-medium text-black text-right max-w-[120px] truncate">{value}</span>
               </div>
             ) : null)}
-
             <div className="flex justify-between items-center text-xs py-2 mt-1">
               <span className="text-neutral-400">Venue?</span>
               <span className={`px-2 py-0.5 rounded-full font-medium ${location.isVenueAddress ? 'bg-purple-100 text-purple-700' : 'bg-neutral-100 text-neutral-500'}`}>
                 {location.isVenueAddress ? 'Yes' : 'No'}
               </span>
             </div>
-
-            {/* Banner thumbnails preview */}
             {bannerFiles.length > 0 && (
               <div className="mt-4">
-                <p className="text-xs text-neutral-400 mb-2">
-                  Banners ({bannerFiles.length})
-                </p>
+                <p className="text-xs text-neutral-400 mb-2">Banners ({bannerFiles.length})</p>
                 <div className="grid grid-cols-3 gap-1.5">
                   {bannerFiles.slice(0, 6).map((b, i) => (
                     <div key={i} className="rounded-lg overflow-hidden bg-neutral-100 relative" style={{ height: 48 }}>
@@ -1213,14 +1280,12 @@ function RegisterAcademyTab({ onAllDone }) {
     const newEntries = files.map((f) => ({ file: f, preview: URL.createObjectURL(f) }))
     setBannerFiles((prev) => [...prev, ...newEntries])
   }
-
   const handleRemoveBanner = (index) => {
     setBannerFiles((prev) => {
       URL.revokeObjectURL(prev[index].preview)
       return prev.filter((_, i) => i !== index)
     })
   }
-
   const handleRemoveAllBanners = () => {
     setBannerFiles((prev) => {
       prev.forEach((b) => URL.revokeObjectURL(b.preview))
@@ -1248,19 +1313,16 @@ function RegisterAcademyTab({ onAllDone }) {
     setApiError('')
     const ve = validate()
     if (Object.keys(ve).length > 0) { setErrors(ve); return }
-
     setLoading(true)
     try {
       const formData = new FormData()
       Object.entries(form).forEach(([k, v]) => formData.append(k, v))
       if (imageFile) formData.append('image', imageFile)
       bannerFiles.forEach((b) => formData.append('banners', b.file))
-
       const res   = await registerAcademy(formData)
       const inner = res?.data ?? res
       console.log('[RegisterAcademyTab] raw res:', res)
       console.log('[RegisterAcademyTab] inner (passed to CreateLocationStep):', inner)
-
       setRegisteredData(inner)
       setStep('location')
     } catch (err) {
@@ -1297,8 +1359,6 @@ function RegisterAcademyTab({ onAllDone }) {
       <div className="flex gap-6 items-start">
         <div className="flex-1 min-w-0">
           <form onSubmit={handleSubmit} noValidate>
-
-            {/* ── Personal Info ── */}
             <div className="bg-white rounded-xl border border-neutral-200 p-5 mb-4">
               <p className="text-xs font-semibold text-neutral-400 uppercase tracking-wide mb-4">Personal Information</p>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -1323,7 +1383,6 @@ function RegisterAcademyTab({ onAllDone }) {
               </div>
             </div>
 
-            {/* ── Academy Details ── */}
             <div className="bg-white rounded-xl border border-neutral-200 p-5 mb-4">
               <p className="text-xs font-semibold text-neutral-400 uppercase tracking-wide mb-4">Academy Details</p>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -1342,7 +1401,6 @@ function RegisterAcademyTab({ onAllDone }) {
               </div>
             </div>
 
-            {/* ── Academy Image ── */}
             <div className="bg-white rounded-xl border border-neutral-200 p-5 mb-4">
               <p className="text-xs font-semibold text-neutral-400 uppercase tracking-wide mb-4">Academy Image</p>
               <ImageUploadBox
@@ -1356,7 +1414,6 @@ function RegisterAcademyTab({ onAllDone }) {
               />
             </div>
 
-            {/* ── Academy Banners ── */}
             <div className="bg-white rounded-xl border border-neutral-200 p-5 mb-5">
               <div className="flex items-start justify-between mb-1">
                 <p className="text-xs font-semibold text-neutral-400 uppercase tracking-wide">Academy Banners</p>
@@ -1377,7 +1434,6 @@ function RegisterAcademyTab({ onAllDone }) {
               />
             </div>
 
-            {/* ── Actions ── */}
             <div className="flex gap-3">
               <button type="submit" disabled={loading}
                 className="flex items-center gap-2 bg-black text-white text-sm font-medium px-5 py-2 rounded-lg hover:bg-neutral-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">

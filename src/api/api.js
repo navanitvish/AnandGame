@@ -159,8 +159,9 @@ export const createPlayer = (playerData) =>
  * Body (JSON): { ...fields to update }
  * Returns { data: Player, message: string }
  */
-export const updatePlayer = (id, updates) =>
-  api.put(`/players/${id}`, updates)
+// PUT /users/update?userId=69f43c33abf3235350ac25e7
+ export const updateUser = (userId, data) =>
+  api.put(`/users/update`, data, { params: { userId } })
 
 /**
  * DELETE /players/:id
