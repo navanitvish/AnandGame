@@ -531,7 +531,7 @@ export default function Sports() {
                     <td className="px-5 py-3 font-medium text-black capitalize">{s.name}</td>
 
                     {/* Description */}
-                    <td className="px-5 py-3 text-neutral-500 max-w-xs">
+                    <td className="px-5 capitalize py-3 text-neutral-500 max-w-xs">
                       <span className="line-clamp-1">{s.description || '—'}</span>
                     </td>
 

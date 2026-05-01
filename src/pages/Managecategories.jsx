@@ -465,7 +465,7 @@ const ManageCategories = () => {
                               : <span className={`text-lg font-bold ${ac.text}`}>{cat.name?.charAt(0)}</span>}
                           </div>
                           <div>
-                            <h3 className="text-sm font-bold text-black">{cat.name}</h3>
+                            <h3 className="text-sm font-bold text-black capitalize">{cat.name}</h3>
                             <p className="text-[10px] text-neutral-400 mt-0.5">
                               {cat.createdAt ? new Date(cat.createdAt).toLocaleDateString() : '—'}
                             </p>
@@ -482,7 +482,7 @@ const ManageCategories = () => {
                         </span>
                       </div>
 
-                      <p className="text-xs text-neutral-500 leading-relaxed line-clamp-2 mb-4 min-h-[32px]">
+                      <p className="text-xs capitalize text-neutral-500 leading-relaxed line-clamp-2 mb-4 min-h-[32px]">
                         {cat.description || 'No description available'}
                       </p>
 

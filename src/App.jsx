@@ -23,6 +23,7 @@ import ModernSlotUI from './pages/academy/SportSlots'
 import AcademyJoin from './pages/Academyjoin'
 import CourtBookings from './pages/academy/Courtbookings'
 import RevenueShare from './pages/RevenueShare'
+import Coaching from './pages/Coaching'
 
 export default function App() {
   return (
@@ -34,9 +35,10 @@ export default function App() {
           <Route path="/users" element={<Users />} />
              <Route path="/academyjoin" element={<AcademyJoin />} />
           <Route path="/games" element={<Games />} />
-          <Route path="/playground" element={<Playground />} />
+          <Route path="/join-games" element={<Playground />} />
           <Route path="/catgeory" element={<ManageCategories />} />
-
+          
+          <Route path="/coaching" element={<Coaching />} />
           <Route path="/banners" element={<BannerPage />} />
           <Route path="/locations" element={<LocationManagement />} />
           <Route path="/privacy-policys" element={<PrivacyPolicy />} />

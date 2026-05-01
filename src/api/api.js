@@ -393,4 +393,11 @@ export const createLocation = (locationData) =>
 export const getLocationById = (locationId) =>
   api.get(`/locations/get/${locationId}`)
 
+
+
+export const getAllRevenue = (page = 1, limit = 10, search = '') =>
+  api.get('/bookings/getAll', {
+    params: { page, limit, ...(search ? { search } : {}) },
+  })
+
 export default api

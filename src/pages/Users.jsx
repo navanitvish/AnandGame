@@ -12,30 +12,7 @@ const AVATAR_COLORS = [
   'bg-green-100 text-green-800',
 ]
 
-const ROLE_STYLES = {
-  admin:           'bg-purple-100 text-purple-800',
-  user:            'bg-blue-100 text-blue-800',
-     // ← added
-  academy_manager: 'bg-amber-100 text-amber-800',
- 
-}
-
-const LOGIN_TYPE_STYLES = {
-  password: 'bg-neutral-100 text-neutral-700',
-  mobile:   'bg-sky-50 text-sky-700',
-  google:   'bg-red-50 text-red-700',
-  apple:    'bg-gray-100 text-gray-700',
-}
-
-// All role options for the dropdown
-const ROLE_OPTIONS = [
-  { value: '',                label: 'All Roles' },
-  { value: 'admin',          label: 'Admin' },
-  { value: 'user',           label: 'User' },
-
-  { value: 'academy_manager',label: 'Academy Manager' },
-
-]
+const PAGE_SIZE = 10
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 const initials = (name = '') =>
@@ -47,26 +24,24 @@ const avatarColor = (id = '') =>
 const formatDate = (iso) =>
   iso ? new Date(iso).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : '—'
 
+const formatDob = (dob) => {
+  if (!dob) return '—'
+  const [y, m, d] = dob.split('-')
+  return new Date(`${y}-${m}-${d}`).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })
+}
+
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
-function StatCard({ label, value }) {
-  return (
-    <div className="bg-neutral-50 rounded-xl px-4 py-3 flex flex-col gap-0.5">
-      <span className="text-xs text-neutral-400">{label}</span>
-      <span className="text-2xl font-semibold text-black">{value}</span>
-    </div>
-  )
-}
-
-function Badge({ label, className }) {
-  return (
-    <span className={`text-xs px-2 py-0.5 rounded-full font-medium capitalize ${className}`}>
-      {label}
-    </span>
-  )
-}
-
-function Avatar({ name, id }) {
+function Avatar({ name, id, image }) {
+  if (image) {
+    return (
+      <img
+        src={image}
+        alt={name}
+        className="w-8 h-8 rounded-full object-cover flex-shrink-0 border border-neutral-100"
+      />
+    )
+  }
   return (
     <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-semibold flex-shrink-0 ${avatarColor(id)}`}>
       {initials(name)}
@@ -80,7 +55,86 @@ function StatusDot({ active }) {
   )
 }
 
-function UserRow({ user, selected, onSelect, onDelete }) {
+// ─── Pagination ───────────────────────────────────────────────────────────────
+function Pagination({ currentPage, totalPages, onPageChange }) {
+  if (totalPages <= 1) return null
+
+  const getPages = () => {
+    const pages = []
+
+    if (totalPages <= 7) {
+      for (let i = 1; i <= totalPages; i++) pages.push(i)
+      return pages
+    }
+
+    pages.push(1)
+
+    if (currentPage > 3) pages.push('...')
+
+    const start = Math.max(2, currentPage - 1)
+    const end   = Math.min(totalPages - 1, currentPage + 1)
+
+    for (let i = start; i <= end; i++) pages.push(i)
+
+    if (currentPage < totalPages - 2) pages.push('...')
+
+    pages.push(totalPages)
+
+    return pages
+  }
+
+  const btnBase   = 'min-w-[32px] h-8 px-2 rounded-lg text-xs font-medium transition-colors flex items-center justify-center'
+  const activeCls = 'bg-purple-600 text-white'
+  const normalCls = 'text-neutral-500 hover:bg-neutral-100'
+  const arrowCls  = 'text-neutral-400 hover:text-neutral-600 disabled:opacity-30 disabled:cursor-not-allowed'
+
+  return (
+    <div className="flex items-center justify-between mt-4 px-1">
+      {/* Left — info */}
+      <p className="text-xs text-neutral-400">
+        Page <span className="font-medium text-neutral-600">{currentPage}</span> of{' '}
+        <span className="font-medium text-neutral-600">{totalPages}</span>
+      </p>
+
+      {/* Right — controls */}
+      <div className="flex items-center gap-1">
+        {/* Prev */}
+        <button
+          onClick={() => onPageChange(currentPage - 1)}
+          disabled={currentPage === 1}
+          className={`${btnBase} ${arrowCls}`}
+        >
+          ‹
+        </button>
+
+        {getPages().map((p, i) =>
+          p === '...' ? (
+            <span key={`dots-${i}`} className="text-xs text-neutral-300 px-1">…</span>
+          ) : (
+            <button
+              key={p}
+              onClick={() => onPageChange(p)}
+              className={`${btnBase} ${currentPage === p ? activeCls : normalCls}`}
+            >
+              {p}
+            </button>
+          )
+        )}
+
+        {/* Next */}
+        <button
+          onClick={() => onPageChange(currentPage + 1)}
+          disabled={currentPage === totalPages}
+          className={`${btnBase} ${arrowCls}`}
+        >
+          ›
+        </button>
+      </div>
+    </div>
+  )
+}
+
+function UserRow({ user, index, selected, onSelect, onDelete }) {
   return (
     <tr
       onClick={() => onSelect(user)}
@@ -88,60 +142,25 @@ function UserRow({ user, selected, onSelect, onDelete }) {
         selected ? 'bg-purple-50' : 'hover:bg-neutral-50'
       }`}
     >
+      {/* S.No */}
+      <td className="px-4 py-3 text-xs text-neutral-400 font-medium">{index}</td>
+
+      {/* Image */}
+      <td className="px-4 py-3">
+        <Avatar name={user.name} id={user._id} image={user.image} />
+      </td>
+
       {/* User */}
       <td className="px-4 py-3">
-        <div className="flex items-center gap-2">
-          <Avatar name={user.name} id={user._id} />
-          <div>
-            <p className="text-sm font-medium text-black leading-none">{user.name}</p>
-            <p className="text-xs text-neutral-400 mt-0.5">{user.email}</p>
-          </div>
+        <div>
+          <p className="text-sm capitalize font-medium text-black leading-none">{user.name}</p>
+          <p className="text-xs text-neutral-400 mt-0.5">{user.email}</p>
         </div>
       </td>
+      <td className="px-4 py-3 text-xs text-neutral-500">
+  {user.mobile ? user.mobile : <span className="text-neutral-300">—</span>}
+</td>
 
-      {/* Role */}
-      <td className="px-4 py-3">
-        <Badge
-          label={user.role}
-          className={ROLE_STYLES[user.role] || 'bg-neutral-100 text-neutral-700'}
-        />
-      </td>
-
-      {/* Academy — only shown for academy_manager / coach */}
-      <td className="px-4 py-3">
-        {user.academy?.name ? (
-          <div className="flex items-center gap-1.5">
-            {user.academy.image && (
-              <img
-                src={user.academy.image}
-                alt={user.academy.name}
-                className="w-5 h-5 rounded object-cover border border-neutral-100 flex-shrink-0"
-              />
-            )}
-            <span className="text-xs text-neutral-600 font-medium truncate max-w-[120px]">
-              {user.academy.name}
-            </span>
-          </div>
-        ) : (
-          <span className="text-xs text-neutral-300">—</span>
-        )}
-      </td>
-
-      {/* Login Type */}
-      <td className="px-4 py-3">
-        <Badge
-          label={user.loginType}
-          className={LOGIN_TYPE_STYLES[user.loginType] || 'bg-neutral-100 text-neutral-700'}
-        />
-      </td>
-
-      {/* Online */}
-      <td className="px-4 py-3">
-        <div className="flex items-center gap-1.5">
-          <StatusDot active={user.isOnline} />
-          <span className="text-xs text-neutral-500">{user.isOnline ? 'Online' : 'Offline'}</span>
-        </div>
-      </td>
 
       {/* Status */}
       <td className="px-4 py-3">
@@ -177,8 +196,6 @@ function UserProfile({ user, onClose }) {
     )
   }
 
-  const academy = user.academy || {}
-
   const boolBadge = (val) => (
     <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${val ? 'bg-emerald-100 text-emerald-700' : 'bg-neutral-100 text-neutral-500'}`}>
       {val ? 'Yes' : 'No'}
@@ -190,38 +207,25 @@ function UserProfile({ user, onClose }) {
       {/* Header */}
       <div className="flex items-start justify-between mb-4">
         <div className="flex flex-col items-center gap-1 w-full">
-          <div className={`w-14 h-14 rounded-full flex items-center justify-center text-lg font-semibold ${avatarColor(user._id)}`}>
-            {initials(user.name)}
-          </div>
+          {user.image ? (
+            <img
+              src={user.image}
+              alt={user.name}
+              className="w-16 h-16 rounded-full object-cover border border-neutral-100"
+            />
+          ) : (
+            <div className={`w-16 h-16 rounded-full flex items-center justify-center text-xl font-semibold ${avatarColor(user._id)}`}>
+              {initials(user.name)}
+            </div>
+          )}
           <p className="text-base font-semibold text-black mt-1">{user.name}</p>
           <p className="text-xs text-neutral-400">{user.email}</p>
-          <div className="flex gap-1.5 mt-1 flex-wrap justify-center">
-            <Badge label={user.role} className={ROLE_STYLES[user.role] || 'bg-neutral-100 text-neutral-700'} />
-            <Badge label={user.loginType} className={LOGIN_TYPE_STYLES[user.loginType] || 'bg-neutral-100 text-neutral-700'} />
-          </div>
+          {user.mobile && (
+            <p className="text-xs text-neutral-500 mt-0.5">📱 {user.mobile}</p>
+          )}
         </div>
         <button onClick={onClose} className="text-neutral-300 hover:text-neutral-500 text-lg leading-none">×</button>
       </div>
-
-      {/* Academy block — visible only when role has an academy */}
-      {academy.name && (
-        <div className="bg-amber-50 border border-amber-100 rounded-lg p-3 mb-4">
-          {academy.image && (
-            <div className="rounded-lg overflow-hidden mb-2" style={{ height: 64 }}>
-              <img src={academy.image} alt={academy.name} className="w-full h-full object-cover" />
-            </div>
-          )}
-          <p className="text-xs text-amber-600 font-semibold">{academy.name}</p>
-          {academy.description && (
-            <p className="text-xs text-neutral-500 mt-0.5">{academy.description}</p>
-          )}
-          {(academy.openingTime || academy.closingTime) && (
-            <p className="text-xs text-neutral-400 mt-1">
-              🕐 {academy.openingTime || '—'} – {academy.closingTime || '—'}
-            </p>
-          )}
-        </div>
-      )}
 
       {/* Status Grid */}
       <div className="grid grid-cols-2 gap-2 mb-4">
@@ -242,17 +246,20 @@ function UserProfile({ user, onClose }) {
 
       {/* Details */}
       {[
-        { label: 'Mobile',           value: user.mobile },
+        { label: 'Address',          value: user.address },
+        { label: 'Date of Birth',    value: formatDob(user.dob) },
         { label: 'Current Screen',   value: user.currentScreen },
-        { label: 'Mobile Verified',  value: user.isMobileVerified ? 'Yes' : 'No' },
+        { label: 'Login Type',       value: user.loginType },
+        { label: 'Mobile Verified',  value: user.isMobileVerified  ? 'Yes' : 'No' },
         { label: 'SignUp Completed', value: user.isSignUpCompleted ? 'Yes' : 'No' },
         { label: 'Onboarding Done',  value: user.isOnBoardingCompleted ? 'Yes' : 'No' },
         { label: 'Last Activity',    value: formatDate(user.lastActivity) },
         { label: 'Joined',           value: formatDate(user.createdAt) },
+        { label: 'Last Updated',     value: formatDate(user.updatedAt) },
       ].map(({ label, value }) => (
-        <div key={label} className="flex justify-between items-center text-sm py-1.5 border-b border-neutral-100 last:border-0">
+        <div key={label} className="flex justify-between items-center py-1.5 border-b border-neutral-100 last:border-0">
           <span className="text-neutral-400 text-xs">{label}</span>
-          <span className="font-medium text-black text-xs text-right max-w-[140px] truncate">{value}</span>
+          <span className="font-medium text-black text-xs text-right max-w-[150px] truncate">{value || '—'}</span>
         </div>
       ))}
     </div>
@@ -261,22 +268,18 @@ function UserProfile({ user, onClose }) {
 
 // ─── Main Component ───────────────────────────────────────────────────────────
 export default function Users() {
-  const [users,      setUsers]      = useState([])
-  const [search,     setSearch]     = useState('')
-  const [roleFilter, setRoleFilter] = useState('')   // ← NEW
-  const [selected,   setSelected]   = useState(null)
-  const [loading,    setLoading]    = useState(true)
-  const [error,      setError]      = useState('')
+  const [users,       setUsers]       = useState([])
+  const [search,      setSearch]      = useState('')
+  const [selected,    setSelected]    = useState(null)
+  const [loading,     setLoading]     = useState(true)
+  const [error,       setError]       = useState('')
+  const [currentPage, setCurrentPage] = useState(1)
 
-  // ── Fetch — re-runs whenever roleFilter changes ──
-  const fetchUsers = useCallback(async (role = '') => {
+  const fetchUsers = useCallback(async () => {
     setLoading(true)
     setError('')
     try {
-      // Pass role as a query param when set; your api.js getUsers should
-      // accept an optional params object, e.g. getUsers({ role })
-      const res = await getUsers(role ? { role } : {})
-      // Response shape: { success, data: { total, totalPages, page, limit, data: [] } }
+      const res = await getUsers({ role: 'user' })
       const list = Array.isArray(res.data?.data) ? res.data.data : []
       setUsers(list)
     } catch (err) {
@@ -287,14 +290,14 @@ export default function Users() {
   }, [])
 
   useEffect(() => {
-    fetchUsers(roleFilter)
-  }, [fetchUsers, roleFilter])
+    fetchUsers()
+  }, [fetchUsers])
 
   const handleDelete = async (id) => {
     try {
       await deleteUser(id)
       if (selected?._id === id) setSelected(null)
-      await fetchUsers(roleFilter)
+      await fetchUsers()
     } catch (err) {
       setError(err.message || 'Failed to delete user')
     }
@@ -304,32 +307,33 @@ export default function Users() {
     setSelected((prev) => (prev?._id === user._id ? null : user))
   }
 
-  const handleRoleChange = (e) => {
-    setRoleFilter(e.target.value)
-    setSelected(null)   // clear profile panel on role switch
+  // Reset to page 1 when search changes
+  const handleSearch = (e) => {
+    setSearch(e.target.value)
+    setCurrentPage(1)
   }
 
-  // Client-side search on top of the already-role-filtered API results
+  // ── Derived: filter → paginate ──
   const filtered = users.filter((u) => {
     const q = search.toLowerCase()
-    const academy = u.academy || {}
     return (
-      u.name?.toLowerCase().includes(q) ||
-      u.email?.toLowerCase().includes(q) ||
-      u.role?.toLowerCase().includes(q) ||
-      u.loginType?.toLowerCase().includes(q) ||
-      academy.name?.toLowerCase().includes(q)
+      u.name?.toLowerCase().includes(q)   ||
+      u.email?.toLowerCase().includes(q)  ||
+      u.mobile?.toLowerCase().includes(q) ||
+      u.address?.toLowerCase().includes(q)
     )
   })
 
-  // ── Derived Stats ──
-  const totalUsers      = users.length
-  const onlineCount     = users.filter((u) => u.isOnline).length
-  const activeCount     = users.filter((u) => u.isActive).length
-  const adminCount      = users.filter((u) => u.role === 'admin').length
-  const customerCount   = users.filter((u) => u.role === 'customer').length   // ← added
-  const academyMgrCount = users.filter((u) => u.role === 'academy_manager').length
-  const coachCount      = users.filter((u) => u.role === 'coach').length
+  const totalPages  = Math.ceil(filtered.length / PAGE_SIZE)
+  const paginated   = filtered.slice(
+    (currentPage - 1) * PAGE_SIZE,
+     currentPage      * PAGE_SIZE
+  )
+
+  const handlePageChange = (page) => {
+    setCurrentPage(page)
+    setSelected(null)   // clear profile on page switch
+  }
 
   return (
     <div>
@@ -338,7 +342,7 @@ export default function Users() {
         <div>
           <h1 className="text-2xl font-bold text-black">Users</h1>
           <p className="text-neutral-500 text-sm mt-1">
-            {loading ? '…' : `${totalUsers} total users`}
+            {loading ? '…' : `${filtered.length} users${search ? ' found' : ' total'}`}
           </p>
         </div>
       </div>
@@ -351,71 +355,27 @@ export default function Users() {
         </div>
       )}
 
-      {/* ── Stats ───────────────────────────────── */}
-      {!loading && (
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-7 gap-3 mb-6">
-          <StatCard label="Total Users"      value={totalUsers}      />
-          <StatCard label="Online Now"       value={onlineCount}     />
-          <StatCard label="Active Users"     value={activeCount}     />
-          <StatCard label="Admins"           value={adminCount}      />
-          <StatCard label="Customers"        value={customerCount}   />
-          <StatCard label="Academy Managers" value={academyMgrCount} />
-          <StatCard label="Coaches"          value={coachCount}      />
-        </div>
-      )}
-
-      {/* ── Search + Role Filter ─────────────────── */}
-      <div className="mb-4 flex flex-wrap gap-3 items-center">
-        {/* Search */}
+      {/* ── Search ───────────────────────────────── */}
+      <div className="mb-4">
         <input
           type="text"
-          placeholder="Search by name, email, role, academy…"
+          placeholder="Search by name, email, mobile, address…"
           value={search}
-          onChange={(e) => setSearch(e.target.value)}
+          onChange={handleSearch}
           className="w-full max-w-sm border border-neutral-200 rounded-lg px-3 py-2 text-sm text-black outline-none focus:border-purple-400"
         />
-
-        {/* Role Dropdown ← NEW */}
-        <div className="relative">
-          <select
-            value={roleFilter}
-            onChange={handleRoleChange}
-            className="appearance-none border border-neutral-200 rounded-lg pl-3 pr-8 py-2 text-sm text-black bg-white outline-none focus:border-purple-400 cursor-pointer"
-          >
-            {ROLE_OPTIONS.map((opt) => (
-              <option key={opt.value} value={opt.value}>
-                {opt.label}
-              </option>
-            ))}
-          </select>
-          {/* Chevron icon */}
-          <span className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-neutral-400 text-xs">▾</span>
-        </div>
-
-        {/* Active filter pill — shown when a role is selected */}
-        {roleFilter && (
-          <div className="flex items-center gap-1.5 bg-purple-50 border border-purple-200 rounded-full px-3 py-1">
-            <span className="text-xs text-purple-700 font-medium capitalize">{roleFilter.replace('_', ' ')}</span>
-            <button
-              onClick={() => { setRoleFilter(''); setSelected(null) }}
-              className="text-purple-400 hover:text-purple-600 text-xs leading-none"
-            >
-              ×
-            </button>
-          </div>
-        )}
       </div>
 
       {/* ── Main Layout ─────────────────────────── */}
       <div className="flex gap-4 items-start">
 
-        {/* Table */}
+        {/* Table + Pagination */}
         <div className="flex-1 min-w-0">
           <div className="bg-white rounded-xl border border-neutral-200 overflow-hidden">
             <table className="w-full text-sm">
               <thead className="bg-neutral-50 border-b border-neutral-200">
                 <tr>
-                  {['User', 'Role', 'Academy', 'Login Type', 'Online', 'Status', 'Joined', ''].map((h) => (
+                  {['S.No', 'Image', 'User','Mobile',  'Status', 'Joined', ''].map((h) => (
                     <th key={h} className="text-left px-4 py-3 text-neutral-400 font-medium text-xs whitespace-nowrap">
                       {h}
                     </th>
@@ -425,23 +385,24 @@ export default function Users() {
               <tbody>
                 {loading ? (
                   <tr>
-                    <td colSpan={8} className="text-center py-12 text-neutral-400">
+                    <td colSpan={6} className="text-center py-12 text-neutral-400">
                       <div className="flex items-center justify-center gap-2">
                         <div className="w-4 h-4 border-2 border-purple-300 border-t-purple-600 rounded-full animate-spin" />
                         Loading users…
                       </div>
                     </td>
                   </tr>
-                ) : filtered.length === 0 ? (
+                ) : paginated.length === 0 ? (
                   <tr>
-                    <td colSpan={8} className="text-center py-12 text-neutral-400">
+                    <td colSpan={6} className="text-center py-12 text-neutral-400">
                       No users found
                     </td>
                   </tr>
                 ) : (
-                  filtered.map((u) => (
+                  paginated.map((u, i) => (
                     <UserRow
                       key={u._id}
+                      index={(currentPage - 1) * PAGE_SIZE + i + 1}
                       user={u}
                       selected={selected?._id === u._id}
                       onSelect={handleSelect}
@@ -452,6 +413,13 @@ export default function Users() {
               </tbody>
             </table>
           </div>
+
+          {/* Pagination — outside the table box */}
+          <Pagination
+            currentPage={currentPage}
+            totalPages={totalPages}
+            onPageChange={handlePageChange}
+          />
         </div>
 
         {/* Profile panel */}

@@ -309,7 +309,7 @@ function UserRow({ user, location, locLoading, selected, onSelect, onDelete, onV
         <div className="flex items-center gap-2">
           <Avatar name={user.name} id={user._id} />
           <div>
-            <p className="text-sm font-medium text-black leading-none">{user.name}</p>
+            <p className="text-sm capitalize font-medium text-black leading-none">{user.name}</p>
             <p className="text-xs text-neutral-400 mt-0.5">{user.email}</p>
           </div>
         </div>
@@ -321,9 +321,9 @@ function UserRow({ user, location, locLoading, selected, onSelect, onDelete, onV
         <Badge label={user.role} className={ROLE_STYLES[user.role] || 'bg-neutral-100 text-neutral-700'} />
       </td>
       {/* Login */}
-      <td className="px-4 py-3">
+      {/* <td className="px-4 py-3">
         <Badge label={user.loginType || '—'} className={LOGIN_TYPE_STYLES[user.loginType] || 'bg-neutral-100 text-neutral-700'} />
-      </td>
+      </td> */}
       {/* Academy */}
       <td className="px-4 py-3 max-w-[160px]">
         <p className="text-xs font-medium text-neutral-700 truncate">{user.academyName || '—'}</p>
@@ -334,12 +334,12 @@ function UserRow({ user, location, locLoading, selected, onSelect, onDelete, onV
         {user.openingTime && user.closingTime ? `${user.openingTime} – ${user.closingTime}` : '—'}
       </td>
       {/* Online */}
-      <td className="px-4 py-3">
+      {/* <td className="px-4 py-3">
         <div className="flex items-center gap-1.5">
           <StatusDot active={user.isOnline} />
           <span className="text-xs text-neutral-500">{user.isOnline ? 'Online' : 'Offline'}</span>
         </div>
-      </td>
+      </td> */}
       {/* Status */}
       <td className="px-4 py-3">
         <div className="flex items-center gap-1.5">
@@ -348,11 +348,11 @@ function UserRow({ user, location, locLoading, selected, onSelect, onDelete, onV
         </div>
       </td>
       {/* Subscribed */}
-      <td className="px-4 py-3">
+      {/* <td className="px-4 py-3">
         <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${user.isSubscribed ? 'bg-emerald-100 text-emerald-700' : 'bg-neutral-100 text-neutral-500'}`}>
           {user.isSubscribed ? 'Yes' : 'No'}
         </span>
-      </td>
+      </td> */}
       {/* Image */}
       <td className="px-4 py-3">
         {user.image
@@ -360,11 +360,11 @@ function UserRow({ user, location, locLoading, selected, onSelect, onDelete, onV
           : <span className="text-neutral-300 text-xs">—</span>}
       </td>
       {/* Screen */}
-      <td className="px-4 py-3 text-xs text-neutral-400 whitespace-nowrap">
+      {/* <td className="px-4 py-3 text-xs text-neutral-400 whitespace-nowrap">
         {user.currentScreen
           ? <span className="bg-neutral-100 text-neutral-600 px-2 py-0.5 rounded-full text-xs">{user.currentScreen.replace(/_/g, ' ').toLowerCase()}</span>
           : '—'}
-      </td>
+      </td> */}
       {/* Joined */}
       <td className="px-4 py-3 text-xs text-neutral-400 whitespace-nowrap">{formatDate(user.createdAt)}</td>
       {/* Last Active */}
@@ -534,8 +534,8 @@ function AcademyManagersTab() {
   })
 
   const TABLE_HEADERS = [
-    'Manager', 'Mobile', 'Role', 'Login', 'Academy', 'Hours',
-    'Online', 'Status', 'Subscribed', 'Image', 'Screen', 'Joined', 'Last Active',
+    'Manager', 'Mobile', 'Role',  'Academy', 'Hours',
+    'Status',  'Image',  'Joined', 'Last Active',
     'City', 'District', 'State', 'Zipcode', 'Formatted Address', 'Coordinates', 'Loc Type',
     '',
   ]
@@ -554,9 +554,9 @@ function AcademyManagersTab() {
       {!loading && (
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
           <StatCard label="Total Managers"  value={users.length} />
-          <StatCard label="Online Now"      value={users.filter(u => u.isOnline).length} />
+        
           <StatCard label="Active"          value={users.filter(u => u.isActive).length} />
-          <StatCard label="Email Verified"  value={users.filter(u => u.isEmailVerified).length} />
+         
         </div>
       )}
 

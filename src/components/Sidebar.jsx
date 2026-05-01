@@ -44,19 +44,20 @@ const adminLinks = [
   { path: '/catgeory', label: 'Category', sub: 'Manage categories', icon: Tag },
   { path: '/games', label: 'Games', sub: 'All active games', icon: Gamepad2 },
   { path: '/venue', label: 'Venue', sub: 'Manage venues', icon: Building2 },
-  { path: '/playground', label: 'Join Games', sub: 'City-wise grounds', icon: Dumbbell },
-  { path: '/grounds', label: 'grounds', sub: 'Manage Grounds', icon: Clock },
+  { path: '/join-games', label: 'Join Games', sub: 'City-wise grounds', icon: Dumbbell },
+    { path: '/coaching', label: 'Coaching', sub: 'Manage coaching', icon: Image },
+  { path: '/grounds', label: 'Grounds', sub: 'Manage Grounds', icon: Clock },
   { path: '/courts', label: 'Courts', sub: 'Manage Courts', icon: Brain },
 
 
-  { path: '/banners', label: 'Banners', sub: 'Manage banners', icon: Image },
+  // { path: '/banners', label: 'Banners', sub: 'Manage banners', icon: Image },
   // { path: '/locations', label: 'Locations', sub: 'Manage locations', icon: MapPin },
 
   { path: '/bookings', label: 'Bookings', sub: 'Manage Bookings', icon: Building2 },
   { path: '/courtbooking', label: 'Court Bookings', sub: 'Manage Bookings', icon: Clock },
   { path: '/privacy-policys', label: 'Privacy Policy', sub: 'Manage privacy policy', icon: ScrollText },
   { path: '/term-conditions', label: 'Terms & Conditions', sub: 'Manage terms', icon: FileText },
-  { path: '/plan', label: 'Plan', sub: 'Manage plans', icon: CreditCard },
+  // { path: '/plan', label: 'Plan', sub: 'Manage plans', icon: CreditCard },
   { path: '/revenueShare', label: 'Revenue Share', sub: 'Manage RevenueShare', icon: CreditCard },
 ]
 
@@ -67,11 +68,12 @@ const academyLinks = [
   { path: '/dashboard', label: 'Dashboard', sub: 'Academy overview', icon: LayoutDashboard },
   { path: '/playground', label: 'Join Games', sub: 'City-wise grounds', icon: Dumbbell },
   { path: '/venue', label: 'Venue', sub: 'Manage venues', icon: Building2 },
-  { path: '/grounds', label: 'grounds', sub: 'Manage Grounds', icon: Clock },
+  { path: '/grounds', label: 'Grounds', sub: 'Manage Grounds', icon: Clock },
   { path: '/courts', label: 'Courts', sub: 'Manage Courts', icon: Brain },
 
   { path: '/booking', label: 'Bookings', sub: 'Manage Bookings', icon: Clock },
   { path: '/courtbooking', label: 'Court Bookings', sub: 'Manage Bookings', icon: Clock },
+    { path: '/revenueShare', label: 'Revenue Share', sub: 'Manage RevenueShare', icon: CreditCard },
   // { path: '/academy/performance', label: 'Performance', sub: 'Track results', icon: BarChart2 },
 ]
 
