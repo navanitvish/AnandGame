@@ -2,23 +2,25 @@ import { useState, useEffect, useRef } from 'react'
 import {
   MapPin, Plus, Trash2, Search, LayoutGrid, List,
   Users, User, Map, Edit, Eye, X, AlertCircle,
-  RefreshCw, Clock, Shield, Layers, Calendar, Lock
+  RefreshCw, Clock, Shield, Layers, Calendar
 } from 'lucide-react'
 import api from '../api/api'
 
 // ── API calls ─────────────────────────────────────────────────────────────────
-const getGrounds    = ()        => api.get('/sportGrounds/getAll')
-const createGround  = (fd)      => api.post('/sportGrounds/create', fd)
-const updateGround  = (id, fd)  => api.put(`/sportGrounds/update/${id}`, fd)
-const deleteGround  = (id)      => api.delete(`/sportGrounds/delete/${id}`)
-const toggleGround  = (id)      => api.patch(`/sportGrounds/${id}/toggle`)
+const getGrounds    = ()       => api.get('/sportGrounds/getAll')
+const createGround  = (fd)     => api.post('/sportGrounds/create', fd)
+const updateGround  = (id, fd) => api.put(`/sportGrounds/update/${id}`, fd)
+const deleteGround  = (id)     => api.delete(`/sportGrounds/delete/${id}`)
+const toggleGround  = (id)     => api.patch(`/sportGrounds/${id}/toggle`)
 
 const fetchVenues     = () => api.get('/venues/getAll')
 const fetchSports     = () => api.get('/sports/getAll')
 const fetchCategories = () => api.get('/categories/getAll')
 
 export const getAcademyManagers = async () => {
-  const res = await api.get('/users/getAll', { params: { role: 'academy_manager' } })
+  const res = await api.get('/users/getAll', {
+    params: { role: 'academy_manager' },
+  })
   return res.data
 }
 
@@ -74,7 +76,6 @@ function useToast() {
   }
   return { toasts, show }
 }
-
 function ToastContainer({ toasts }) {
   return (
     <div className="fixed top-5 right-5 z-50 flex flex-col gap-2 pointer-events-none">
@@ -103,9 +104,7 @@ function ConfirmModal({ show, name, loading, onConfirm, onCancel }) {
         </div>
         <div className="flex gap-2">
           <button onClick={onCancel} disabled={loading}
-            className="flex-1 py-2 text-sm rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50">
-            Cancel
-          </button>
+            className="flex-1 py-2 text-sm rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50">Cancel</button>
           <button onClick={onConfirm} disabled={loading}
             className="flex-1 py-2 text-sm rounded-lg bg-red-500 hover:bg-red-600 text-white font-medium disabled:opacity-60">
             {loading ? 'Deleting...' : 'Delete'}
@@ -119,37 +118,30 @@ function ConfirmModal({ show, name, loading, onConfirm, onCancel }) {
 // ── View Modal ────────────────────────────────────────────────────────────────
 function ViewModal({ ground, onClose, onEdit }) {
   if (!ground) return null
-
-  const infoRows = [
+  const rows = [
     { label: 'Name',           value: ground.name },
+    { label: 'Venue',          value: getName(ground.venueId) },
+    { label: 'Sport',          value: getName(ground.sportId) },
+    { label: 'Category',       value: getName(ground.categoryId) },
+    { label: 'Academy',        value: getName(ground.academyId) },
     { label: 'Coach',          value: ground.coach || '—' },
     { label: 'Price',          value: ground.price ? `₹${ground.price}` : '—' },
     { label: 'Level',          value: (ground.level && ground.level !== 'null') ? ground.level : '—' },
     { label: 'Duration (hrs)', value: ground.sportDurationInHours ?? '—' },
     { label: 'Sport Date',     value: ground.sportDateDisplay || '—' },
-    { label: 'Sport Timing',   value: ground.sportTimingDisplay || '—' },
-    { label: 'Venue',          value: getName(ground.venueId) },
-    { label: 'Sport',          value: getName(ground.sportId) },
-    { label: 'Category',       value: getName(ground.categoryId) },
-    { label: 'Academy',        value: getName(ground.academyId) },
+    { label: 'Timing',         value: ground.sportTimingDisplay || '—' },
     { label: 'Max Players',    value: ground.maxPlayers ?? '—' },
     { label: 'Min Players',    value: ground.minPlayers ?? '—' },
-    { label: 'Max Teams',      value: ground.maxTeams ?? '—' },
-    { label: 'Min Teams',      value: ground.minTeams ?? '—' },
     { label: 'Private',        value: ground.isPrivate ? 'Yes' : 'No' },
     { label: 'Available',      value: ground.isAvailable ? 'Yes' : 'No' },
     { label: 'Full',           value: ground.isFull ? 'Yes' : 'No' },
     { label: 'Status',         value: ground.isActive ? 'Active' : 'Inactive' },
-    { label: 'Created',        value: ground.createdAt
-        ? new Date(ground.createdAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })
-        : '—' },
+    { label: 'Created',        value: ground.createdAt ? new Date(ground.createdAt).toLocaleDateString('en-IN', { day:'2-digit', month:'short', year:'numeric' }) : '—' },
   ]
 
   return (
     <div className="fixed inset-0 bg-black/40 z-40 flex items-center justify-center backdrop-blur-sm p-4">
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
-
-        {/* Header */}
         <div className="sticky top-0 bg-white flex items-center justify-between px-6 py-4 border-b border-gray-100 z-10">
           <div className="flex items-center gap-3">
             <div className="w-9 h-9 bg-purple-100 border border-purple-200 rounded-xl flex items-center justify-center">
@@ -172,42 +164,13 @@ function ViewModal({ ground, onClose, onEdit }) {
           </div>
         </div>
 
-        {/* Image */}
         {ground.image && (
           <img src={ground.image} alt={ground.name} className="w-full h-44 object-cover"
             onError={e => e.target.style.display = 'none'} />
         )}
 
-        {/* Description */}
-        {ground.description && (
-          <p className="px-6 pt-4 text-sm text-gray-500">{ground.description}</p>
-        )}
-
-        {/* Opening / Closing / Sport timing highlight */}
-        <div className="mx-5 mt-4 mb-1 bg-gray-50 border border-gray-100 rounded-xl p-4">
-          <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-3">Ground Hours</p>
-          <div className="grid grid-cols-3 gap-3">
-            <div className="flex flex-col items-center bg-green-50 border border-green-100 rounded-xl py-3">
-              <Clock className="h-4 w-4 text-green-500 mb-1" />
-              <p className="text-[9px] font-bold uppercase tracking-wider text-green-500">Opens</p>
-              <p className="text-sm font-bold text-green-700 mt-1">{ground.openingTime || '—'}</p>
-            </div>
-            <div className="flex flex-col items-center bg-red-50 border border-red-100 rounded-xl py-3">
-              <Clock className="h-4 w-4 text-red-400 mb-1" />
-              <p className="text-[9px] font-bold uppercase tracking-wider text-red-400">Closes</p>
-              <p className="text-sm font-bold text-red-600 mt-1">{ground.closingTime || '—'}</p>
-            </div>
-            <div className="flex flex-col items-center bg-purple-50 border border-purple-100 rounded-xl py-3">
-              <Clock className="h-4 w-4 text-purple-500 mb-1" />
-              <p className="text-[9px] font-bold uppercase tracking-wider text-purple-500">Sport time</p>
-              <p className="text-sm font-bold text-purple-700 mt-1">{ground.sportTimingDisplay || '—'}</p>
-            </div>
-          </div>
-        </div>
-
-        {/* Features */}
         {ground.features?.length > 0 && (
-          <div className="px-5 pt-3">
+          <div className="px-5 pt-4">
             <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-2">Features</p>
             <div className="flex flex-wrap gap-2">
               {ground.features.map((f, i) => (
@@ -220,9 +183,8 @@ function ViewModal({ ground, onClose, onEdit }) {
           </div>
         )}
 
-        {/* Info grid */}
         <div className="p-5 grid grid-cols-2 gap-2">
-          {infoRows.map(({ label, value }) => (
+          {rows.map(({ label, value }) => (
             <div key={label} className="bg-gray-50 rounded-xl p-3 border border-gray-100">
               <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-1">{label}</p>
               <p className="text-sm font-medium text-gray-800 truncate">{value}</p>
@@ -234,7 +196,10 @@ function ViewModal({ ground, onClose, onEdit }) {
   )
 }
 
-// ── Form Sub-Components ───────────────────────────────────────────────────────
+// ══════════════════════════════════════════════════════════════════════════════
+// ── Form Sub-Components (OUTSIDE GroundFormModal to prevent remount on render)
+// ══════════════════════════════════════════════════════════════════════════════
+
 function Field({ label, k, type = 'text', ph = '', form, errors, set, setErrors }) {
   return (
     <div>
@@ -285,7 +250,9 @@ function DropDown({ label, k, options, ph = 'Select…', disabled = false, form,
       >
         <option value="">{ph}</option>
         {options.map(o => (
-          <option key={o._id || o.id} value={o._id || o.id}>{o.name}</option>
+          <option key={o._id || o.id} value={o._id || o.id}>
+            {o.name}
+          </option>
         ))}
       </select>
       {errors[k] && <p className="text-xs text-red-500 mt-1">{errors[k]}</p>}
@@ -363,6 +330,7 @@ function GroundFormModal({ show, editGround, venues, sports, categories, academy
     if (Object.keys(e).length) { setErrors(e); return }
 
     const fd = new FormData()
+
     const payload = {
       venueId:              form.venueId,
       sportId:              form.sportId,
@@ -404,6 +372,7 @@ function GroundFormModal({ show, editGround, venues, sports, categories, academy
     } catch (err) {
       const msg = err?.response?.data?.message || err.message || 'Something went wrong'
       toast(msg, 'error')
+      console.error('❌ API error:', err?.response?.data || err)
     } finally {
       setLoading(false)
     }
@@ -418,20 +387,21 @@ function GroundFormModal({ show, editGround, venues, sports, categories, academy
     }))
     .filter(o => o._id)
 
+  // Shared props passed down to all field components
   const fieldProps = { form, errors, set, setErrors }
 
   return (
     <div className="fixed inset-0 bg-black/40 z-40 flex items-center justify-center backdrop-blur-sm p-4">
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[92vh] overflow-y-auto">
 
-        {/* Header */}
+        {/* ── Header ── */}
         <div className="sticky top-0 bg-white flex items-center justify-between px-6 py-4 border-b border-gray-100 z-10">
           <div className="flex items-center gap-3">
             <div className={`w-8 h-8 rounded-xl flex items-center justify-center ${editGround ? 'bg-amber-50 border border-amber-200' : 'bg-purple-50 border border-purple-200'}`}>
               {editGround ? <Edit className="h-4 w-4 text-amber-500" /> : <Plus className="h-4 w-4 text-purple-600" />}
             </div>
             <div>
-              <h2 className="text-sm font-bold text-gray-900">{editGround ? 'Edit Ground' : 'Add New Ground'}</h2>
+              <h2 className="text-sm font-bold text-gray-900">{editGround ? 'Edit Game' : 'Add New Game'}</h2>
               <p className="text-xs text-gray-400">* required fields</p>
             </div>
           </div>
@@ -442,13 +412,13 @@ function GroundFormModal({ show, editGround, venues, sports, categories, academy
 
         <div className="p-6 space-y-6">
 
-          {/* Linked References */}
+          {/* ── Linked References ── */}
           <div>
             <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-3">Linked References *</p>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <DropDown label="Venue *"    k="venueId"    options={venues}       ph="Select venue"    {...fieldProps} />
-              <DropDown label="Sport *"    k="sportId"    options={sports}       ph="Select sport"    {...fieldProps} />
-              <DropDown label="Category *" k="categoryId" options={categories}   ph="Select category" {...fieldProps} />
+              <DropDown label="Venue *"    k="venueId"    options={venues}         ph="Select venue"    {...fieldProps} />
+              <DropDown label="Sport *"    k="sportId"    options={sports}         ph="Select sport"    {...fieldProps} />
+              <DropDown label="Category *" k="categoryId" options={categories}     ph="Select category" {...fieldProps} />
               <DropDown
                 label={editGround ? 'Academy (locked)' : 'Academy *'}
                 k="academyId"
@@ -460,11 +430,11 @@ function GroundFormModal({ show, editGround, venues, sports, categories, academy
             </div>
           </div>
 
-          {/* Basic Info */}
+          {/* ── Basic Info ── */}
           <div>
             <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-3">Basic Info</p>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <Field label="Ground Name *" k="name"  ph="e.g. Cricket Ground 1" {...fieldProps} />
+              <Field label="Game Name *" k="name"  ph="e.g. Cricket game 1" {...fieldProps} />
               <Field label="Coach"         k="coach" ph="Coach name"             {...fieldProps} />
               <Field label="Price (₹)"     k="price" type="number" ph="500"      {...fieldProps} />
               <div className="sm:col-span-2">
@@ -477,18 +447,18 @@ function GroundFormModal({ show, editGround, venues, sports, categories, academy
             </div>
           </div>
 
-          {/* Timing */}
+          {/* ── Timing ── */}
           <div>
             <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-3">Timing</p>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-              <TimeField label="Opening Time"   k="openingTime"          {...fieldProps} />
-              <TimeField label="Closing Time"   k="closingTime"          {...fieldProps} />
+              <TimeField label="Start Time"  k="openingTime"          {...fieldProps} />
+              <TimeField label="End Time"  k="closingTime"          {...fieldProps} />
               <Field     label="Duration (hrs)" k="sportDurationInHours" type="number" ph="2" {...fieldProps} />
               <Field     label="Sport Date"     k="sportDate"            type="datetime-local" {...fieldProps} />
             </div>
           </div>
 
-          {/* Players & Teams */}
+          {/* ── Players & Teams ── */}
           <div>
             <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-3">Players & Teams</p>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
@@ -499,7 +469,7 @@ function GroundFormModal({ show, editGround, venues, sports, categories, academy
             </div>
           </div>
 
-          {/* Settings */}
+          {/* ── Settings ── */}
           <div>
             <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-3">Settings</p>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
@@ -507,7 +477,7 @@ function GroundFormModal({ show, editGround, venues, sports, categories, academy
                 <label className={labelCls}>Level</label>
                 <select value={form.level} onChange={e => set('level', e.target.value)} className={inputCls}>
                   <option value="">Select level</option>
-                  {['beginner', 'Intermediate', 'Advanced', 'Professional'].map(l => <option key={l}>{l}</option>)}
+                  {['beginner','intermediate','advanced','professional'].map(l => <option key={l}>{l}</option>)}
                 </select>
               </div>
               <BoolSel label="Is Private"   k="isPrivate"   form={form} set={set} />
@@ -516,13 +486,13 @@ function GroundFormModal({ show, editGround, venues, sports, categories, academy
             </div>
           </div>
 
-          {/* Image */}
+          {/* ── Image ── */}
           <div>
             <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-3">Image</p>
             <div onClick={() => fileRef.current?.click()}
               className="flex items-center gap-4 bg-gray-50 border-2 border-dashed border-gray-200 rounded-xl px-4 py-4 cursor-pointer hover:border-purple-400 hover:bg-purple-50/30 transition-all">
               {preview
-                ? <img src={preview} alt="preview" className="h-16 w-24 object-cover rounded-xl border border-gray-200 flex-shrink-0" onError={e => e.target.style.display = 'none'} />
+                ? <img src={preview} alt="preview" className="h-16 w-24 object-cover rounded-xl border border-gray-200 flex-shrink-0" onError={e => e.target.style.display='none'} />
                 : <div className="h-16 w-24 bg-purple-50 border border-purple-200 rounded-xl flex items-center justify-center flex-shrink-0"><MapPin className="h-6 w-6 text-purple-400" /></div>
               }
               <div>
@@ -533,20 +503,16 @@ function GroundFormModal({ show, editGround, venues, sports, categories, academy
                 onChange={e => { const f = e.target.files[0]; if (f) { setFile(f); setPreview(URL.createObjectURL(f)) } }} />
             </div>
             {(preview || file) && (
-              <button onClick={() => { setPreview(null); setFile(null); if (fileRef.current) fileRef.current.value = '' }}
-                className="text-xs text-red-400 hover:text-red-600 mt-1.5">
-                Remove image
-              </button>
+              <button onClick={() => { setPreview(null); setFile(null); if (fileRef.current) fileRef.current.value='' }}
+                className="text-xs text-red-400 hover:text-red-600 mt-1.5">Remove image</button>
             )}
           </div>
         </div>
 
-        {/* Footer */}
+        {/* ── Footer ── */}
         <div className="sticky bottom-0 bg-white px-6 py-4 border-t border-gray-100 flex gap-3">
           <button onClick={onClose} disabled={loading}
-            className="flex-1 py-2.5 text-sm rounded-xl border border-gray-200 text-gray-600 hover:bg-gray-50 disabled:opacity-50">
-            Cancel
-          </button>
+            className="flex-1 py-2.5 text-sm rounded-xl border border-gray-200 text-gray-600 hover:bg-gray-50 disabled:opacity-50">Cancel</button>
           <button onClick={handleSubmit} disabled={loading}
             className="flex-1 py-2.5 text-sm rounded-xl bg-purple-600 hover:bg-purple-700 text-white font-medium disabled:opacity-60 flex items-center justify-center gap-2">
             {loading
@@ -587,9 +553,13 @@ export default function SportGrounds() {
     setLoading(true)
     try {
       const res = await getGrounds()
-      setGrounds(toList(res))
+      const all = toList(res)
+      const coachingOnly = all.filter(g =>
+        getName(g.categoryId).toLowerCase() === 'coaching'
+      )
+      setGrounds(coachingOnly)
     } catch (err) {
-      toast(err.message || 'Failed to load grounds', 'error')
+      toast(err.message || 'Failed to load coaching sessions', 'error')
     } finally {
       setLoading(false)
     }
@@ -605,7 +575,11 @@ export default function SportGrounds() {
     if (vR.status === 'fulfilled') setVenues(toList(vR.value))
     if (sR.status === 'fulfilled') setSports(toList(sR.value))
     if (cR.status === 'fulfilled') setCategories(toList(cR.value))
-    if (aR.status === 'fulfilled') setAcademyManagers(toList(aR.value))
+    if (aR.status === 'fulfilled') {
+      const list = toList(aR.value)
+      console.log('🟢 Raw academy managers from API:', list)
+      setAcademyManagers(list)
+    }
   }
 
   const handleDeleteConfirm = async () => {
@@ -624,13 +598,13 @@ export default function SportGrounds() {
     setTogglingId(id)
     try {
       await toggleGround(id)
-      setGrounds(prev => prev.map(g => (g._id || g.id) === id ? { ...g, isActive: !g.isActive } : g))
+      setGrounds(prev => prev.map(g => (g._id||g.id)===id ? {...g, isActive:!g.isActive} : g))
       toast(`Marked ${ground.isActive ? 'Inactive' : 'Active'}`, 'success')
     } catch {
       try {
         const fd = new FormData(); fd.append('isActive', String(!ground.isActive))
         await updateGround(id, fd)
-        setGrounds(prev => prev.map(g => (g._id || g.id) === id ? { ...g, isActive: !g.isActive } : g))
+        setGrounds(prev => prev.map(g => (g._id||g.id)===id ? {...g, isActive:!g.isActive} : g))
         toast(`Marked ${ground.isActive ? 'Inactive' : 'Active'}`, 'success')
       } catch (e2) { toast(e2.message || 'Toggle failed', 'error') }
     } finally { setTogglingId(null) }
@@ -649,61 +623,22 @@ export default function SportGrounds() {
   })
 
   const activeCount = grounds.filter(g => g.isActive).length
-  const availCount  = grounds.filter(g => g.isAvailable).length
-  const sportCount  = new Set(grounds.map(g => getId(g.sportId))).size
-
   const stats = [
-    { label: 'Total Grounds', value: grounds.length,               sub: `${activeCount} active`,    icon: Map,      color: 'bg-purple-600' },
-    { label: 'Available',     value: availCount,                   sub: 'open for booking',         icon: Shield,   color: 'bg-green-600'  },
-    { label: 'Inactive',      value: grounds.length - activeCount, sub: 'not available',            icon: Layers,   color: 'bg-neutral-600' },
-    { label: 'Sport Types',   value: sportCount,                   sub: 'unique sports',            icon: Calendar, color: 'bg-black'      },
-  ]
-
-  // Category badge colour helper
-  const catBadge = (cat) => {
-    const c = getName(cat).toLowerCase()
-    if (c === 'coaching') return 'bg-purple-100 text-purple-700'
-    if (c === 'games')    return 'bg-blue-100 text-blue-700'
-    if (c === 'trial')    return 'bg-amber-100 text-amber-700'
-    return 'bg-gray-100 text-gray-600'
-  }
-
-  const sportBadge = (sp) => {
-    const s = getName(sp).toLowerCase()
-    if (s === 'cricket')    return 'bg-green-100 text-green-700'
-    if (s === 'football')   return 'bg-blue-100 text-blue-700'
-    if (s === 'tennis')     return 'bg-purple-100 text-purple-700'
-    if (s === 'volleyball') return 'bg-amber-100 text-amber-700'
-    if (s === 'badminton')  return 'bg-pink-100 text-pink-700'
-    return 'bg-gray-100 text-gray-600'
-  }
-
-  // ── TABLE HEADERS ─────────────────────────────────────────────────────────
-  const TABLE_HEADS = [
-    '#', 'Image', 'Name', 'Venue', 'Sport', 'Category',
-    'Academy', 'Coach', 'Price',
-    'Open · Close',   // ← opening & closing times
-    'Sport Timing',   // ← sport timing + duration
-    'Players', 'Date', 'Status', 'Actions'
+    { label:'Total Grounds', value:grounds.length,               sub:`${activeCount} active`, icon:Map,      color:'bg-purple-600' },
+    { label:'Active',        value:activeCount,                  sub:'available now',         icon:Shield,   color:'bg-green-600'  },
+    { label:'Inactive',      value:grounds.length - activeCount, sub:'not available',         icon:Layers,   color:'bg-neutral-600'},
+    { label:'Sports',        value:new Set(grounds.map(g=>getId(g.sportId))).size, sub:'types', icon:Calendar, color:'bg-black'    },
   ]
 
   return (
     <div className="space-y-6">
       <ToastContainer toasts={toasts} />
 
-      <ConfirmModal
-        show={!!deleteTarget}
-        name={deleteTarget?.name}
-        loading={deleting}
-        onConfirm={handleDeleteConfirm}
-        onCancel={() => setDeleteTarget(null)}
-      />
+      <ConfirmModal show={!!deleteTarget} name={deleteTarget?.name} loading={deleting}
+        onConfirm={handleDeleteConfirm} onCancel={() => setDeleteTarget(null)} />
 
-      <ViewModal
-        ground={viewGround}
-        onClose={() => setViewGround(null)}
-        onEdit={g => { setEditGround(g); setShowForm(true) }}
-      />
+      <ViewModal ground={viewGround} onClose={() => setViewGround(null)}
+        onEdit={g => { setEditGround(g); setShowForm(true) }} />
 
       <GroundFormModal
         show={showForm}
@@ -717,16 +652,16 @@ export default function SportGrounds() {
         toast={toast}
       />
 
-      {/* ── Page Header ── */}
+      {/* Header */}
       <div className="flex items-start justify-between">
         <div>
           <div className="flex items-center gap-2.5 mb-1">
             <div className="w-9 h-9 bg-purple-600 rounded-xl flex items-center justify-center">
               <MapPin className="h-4 w-4 text-white" />
             </div>
-            <h1 className="text-2xl font-bold text-black">Sport Grounds</h1>
+            <h1 className="text-2xl font-bold text-black"> Join Games</h1>
           </div>
-          <p className="text-neutral-500 text-sm">Manage all sport grounds, coaching & games</p>
+          <p className="text-neutral-500 text-sm">Join Games sport & category linked</p>
         </div>
         <div className="flex gap-2">
           <button onClick={fetchAll}
@@ -735,12 +670,12 @@ export default function SportGrounds() {
           </button>
           <button onClick={() => { setEditGround(null); setShowForm(true) }}
             className="flex items-center gap-2 bg-purple-600 hover:bg-purple-700 text-white text-sm font-semibold px-4 py-2.5 rounded-xl">
-            <Plus className="h-4 w-4" /> Add Ground
+            <Plus className="h-4 w-4" /> Add Games
           </button>
         </div>
       </div>
 
-      {/* ── Stats ── */}
+      {/* Stats */}
       <div className="grid grid-cols-2 xl:grid-cols-4 gap-3">
         {stats.map(({ label, value, sub, icon: Icon, color }) => (
           <div key={label} className="bg-white rounded-2xl border border-neutral-200 p-4 flex items-center gap-3">
@@ -756,34 +691,28 @@ export default function SportGrounds() {
         ))}
       </div>
 
-      {/* ── Filters ── */}
+      {/* Filters */}
       <div className="flex flex-wrap items-center gap-3">
         <div className="flex items-center gap-2 bg-white border border-neutral-200 rounded-lg px-3 py-2 flex-1 min-w-48 max-w-sm">
           <Search className="h-3.5 w-3.5 text-neutral-400 shrink-0" />
-          <input
-            type="text"
-            placeholder="Search name, coach, venue, sport, academy..."
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-            className="bg-transparent text-xs text-black outline-none w-full placeholder:text-neutral-400"
-          />
+          <input type="text" placeholder="Search name, coach, venue, sport, academy..."
+            value={search} onChange={e => setSearch(e.target.value)}
+            className="bg-transparent text-xs text-black outline-none w-full placeholder:text-neutral-400" />
         </div>
-        <span className="text-xs text-neutral-400 ml-auto">
-          {filtered.length} ground{filtered.length !== 1 ? 's' : ''}
-        </span>
+        <span className="text-xs text-neutral-400 ml-auto">{filtered.length} ground{filtered.length !== 1 ? 's' : ''}</span>
         <div className="flex bg-neutral-100 rounded-lg p-0.5">
           <button onClick={() => setViewMode('table')}
-            className={`p-1.5 rounded-md transition-colors ${viewMode === 'table' ? 'bg-white shadow-sm' : 'text-neutral-400 hover:text-black'}`}>
+            className={`p-1.5 rounded-md transition-colors ${viewMode==='table' ? 'bg-white shadow-sm' : 'text-neutral-400 hover:text-black'}`}>
             <List className="h-3.5 w-3.5" />
           </button>
           <button onClick={() => setViewMode('grid')}
-            className={`p-1.5 rounded-md transition-colors ${viewMode === 'grid' ? 'bg-white shadow-sm' : 'text-neutral-400 hover:text-black'}`}>
+            className={`p-1.5 rounded-md transition-colors ${viewMode==='grid' ? 'bg-white shadow-sm' : 'text-neutral-400 hover:text-black'}`}>
             <LayoutGrid className="h-3.5 w-3.5" />
           </button>
         </div>
       </div>
 
-      {/* ── Loading ── */}
+      {/* Loading */}
       {loading && (
         <div className="bg-white rounded-2xl border border-neutral-200 py-20 flex flex-col items-center gap-3">
           <div className="w-8 h-8 border-2 border-purple-300 border-t-purple-600 rounded-full animate-spin" />
@@ -791,194 +720,105 @@ export default function SportGrounds() {
         </div>
       )}
 
-      {/* ════════════════════════════════════════════
-          TABLE VIEW
-      ════════════════════════════════════════════ */}
+      {/* TABLE VIEW */}
       {!loading && viewMode === 'table' && (
         <div className="bg-white rounded-2xl border border-neutral-200 overflow-hidden">
           <div className="overflow-x-auto">
-            <table className="w-full text-sm" style={{ minWidth: '1200px' }}>
+            <table className="w-full text-sm">
               <thead className="bg-neutral-50 border-b border-neutral-200">
                 <tr>
-                  {TABLE_HEADS.map(h => (
-                    <th key={h} className="text-left px-3 py-3 text-[11px] text-neutral-400 font-semibold whitespace-nowrap">
-                      {h}
-                    </th>
+                  {['#','Image','Name','Venue','Sport','Category','Academy','Coach','Price','Timing','Players','Date','Status','Actions'].map(h => (
+                    <th key={h} className="text-left px-4 py-3 text-[11px] text-neutral-400 font-semibold whitespace-nowrap">{h}</th>
                   ))}
                 </tr>
               </thead>
               <tbody>
                 {filtered.length === 0 ? (
-                  <tr>
-                    <td colSpan={TABLE_HEADS.length} className="text-center py-14 text-neutral-400 text-sm">
-                      <MapPin className="h-7 w-7 mx-auto mb-2 text-neutral-200" />
-                      No grounds found
-                    </td>
-                  </tr>
+                  <tr><td colSpan={14} className="text-center py-14 text-neutral-400 text-sm">
+                    <MapPin className="h-7 w-7 mx-auto mb-2 text-neutral-200" />No grounds found
+                  </td></tr>
                 ) : filtered.map((g, i) => {
                   const id = g._id || g.id
                   return (
                     <tr key={id} className="border-b border-neutral-100 hover:bg-neutral-50 transition-colors">
-
-                      {/* # */}
-                      <td className="px-3 py-3 text-neutral-400 text-xs">{i + 1}</td>
-
-                      {/* Image */}
-                      <td className="px-3 py-3">
+                      <td className="px-4 py-3 text-neutral-400 text-xs">{i + 1}</td>
+                      <td className="px-4 py-3">
                         {g.image
-                          ? <img src={g.image} alt={g.name} className="w-10 h-10 rounded-lg object-cover border border-gray-100" onError={e => e.target.style.display = 'none'} />
+                          ? <img src={g.image} alt={g.name} className="w-10 h-10 rounded-lg object-cover border border-gray-100" onError={e=>e.target.style.display='none'} />
                           : <div className="w-10 h-10 rounded-lg bg-purple-100 flex items-center justify-center"><MapPin className="h-4 w-4 text-purple-500" /></div>
                         }
                       </td>
-
-                      {/* Name */}
-                      <td className="px-3 py-3">
+                      <td className="px-4 py-3">
                         <p className="text-xs font-semibold text-black capitalize">{g.name}</p>
-                        {g.level && g.level !== 'null' && (
-                          <p className="text-[10px] text-neutral-400 mt-0.5 capitalize">{g.level}</p>
-                        )}
-                        {g.isPrivate && (
-                          <span className="inline-flex items-center gap-1 text-[9px] bg-amber-50 border border-amber-200 text-amber-600 px-1.5 py-0.5 rounded mt-1">
-                            <Lock className="h-2.5 w-2.5" /> private
-                          </span>
-                        )}
+                        {g.level && g.level !== 'null' && <p className="text-[10px] text-neutral-400 mt-0.5">{g.level}</p>}
                       </td>
-
-                      {/* Venue */}
-                      <td className="px-3 py-3">
+                      <td className="px-4 py-3">
                         <div className="flex items-center gap-1.5">
                           {getImg(g.venueId) && (
-                            <img src={getImg(g.venueId)} alt="" className="w-5 h-5 rounded object-cover flex-shrink-0" onError={e => e.target.style.display = 'none'} />
+                            <img src={getImg(g.venueId)} alt="" className="w-5 h-5 rounded object-cover flex-shrink-0" onError={e=>e.target.style.display='none'} />
                           )}
                           <span className="text-xs text-neutral-600 capitalize bg-gray-100 px-2 py-0.5 rounded-full truncate max-w-[90px]">
                             {getName(g.venueId)}
                           </span>
                         </div>
                       </td>
-
-                      {/* Sport */}
-                      <td className="px-3 py-3">
-                        <span className={`text-xs capitalize px-2 py-0.5 rounded-full whitespace-nowrap ${sportBadge(g.sportId)}`}>
+                      <td className="px-4 py-3">
+                        <span className="text-xs text-purple-700 capitalize bg-purple-50 px-2 py-0.5 rounded-full whitespace-nowrap">
                           {getName(g.sportId)}
                         </span>
                       </td>
-
-                      {/* Category */}
-                      <td className="px-3 py-3">
-                        <span className={`text-xs capitalize px-2 py-0.5 rounded-full whitespace-nowrap ${catBadge(g.categoryId)}`}>
+                      <td className="px-4 py-3">
+                        <span className="text-xs text-blue-700 capitalize bg-blue-50 px-2 py-0.5 rounded-full whitespace-nowrap">
                           {getName(g.categoryId)}
                         </span>
                       </td>
-
-                      {/* Academy */}
-                      <td className="px-3 py-3">
-                        <span className="text-xs text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full whitespace-nowrap truncate max-w-[100px] inline-block">
+                      <td className="px-4 py-3">
+                        <span className="text-xs text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full whitespace-nowrap truncate max-w-[90px] inline-block">
                           {getName(g.academyId)}
                         </span>
                       </td>
-
-                      {/* Coach */}
-                      <td className="px-3 py-3">
+                      <td className="px-4 py-3">
                         <div className="flex items-center gap-1">
-                          <User className="h-3 w-3 text-neutral-400 shrink-0" />
-                          <span className="text-xs capitalize text-neutral-600 truncate max-w-[80px]">{g.coach || '—'}</span>
+                          <User className="h-3 w-3 text-neutral-400" />
+                          <span className="text-xs capitalize text-neutral-600">{g.coach || '—'}</span>
                         </div>
                       </td>
-
-                      {/* Price */}
-                      <td className="px-3 py-3">
+                      <td className="px-4 py-3">
                         <span className="text-xs font-semibold text-green-700">
                           {g.price ? `₹${g.price}` : '—'}
                         </span>
                       </td>
-
-                      {/* ── Open · Close (new combined column) ── */}
-                      <td className="px-3 py-3">
-                        {/* Opening time — green clock */}
-                        <div className="flex items-center gap-1.5 mb-1">
-                          <Clock className="h-3 w-3 text-green-500 shrink-0" />
-                          <span className="text-[11px] font-medium text-black whitespace-nowrap">
-                            {g.openingTime || '—'}
-                          </span>
-                        </div>
-                        {/* Closing time — red clock */}
-                        <div className="flex items-center gap-1.5">
-                          <Clock className="h-3 w-3 text-red-400 shrink-0" />
-                          <span className="text-[10px] text-neutral-400 whitespace-nowrap">
-                            {g.closingTime || '—'}
-                          </span>
-                        </div>
-                      </td>
-
-                      {/* ── Sport Timing + Duration ── */}
-                      <td className="px-3 py-3">
+                      <td className="px-4 py-3">
                         <div className="flex items-center gap-1">
-                          <Clock className="h-3 w-3 text-purple-400 shrink-0" />
-                          <span className="text-[11px] font-medium text-black whitespace-nowrap">
-                            {g.sportTimingDisplay || '—'}
-                          </span>
+                          <Clock className="h-3 w-3 text-neutral-400" />
+                          <span className="text-[10px] text-neutral-500">{g.sportTimingDisplay || g.openingTime || '—'}</span>
                         </div>
-                        {g.sportDurationInHours && (
-                          <p className="text-[10px] text-neutral-400 mt-0.5 pl-4">
-                            {g.sportDurationInHours}h duration
-                          </p>
-                        )}
+                        {g.sportDurationInHours && <p className="text-[10px] text-neutral-300 mt-0.5 pl-4">{g.sportDurationInHours}h</p>}
                       </td>
-
-                      {/* Players */}
-                      <td className="px-3 py-3">
+                      <td className="px-4 py-3">
                         <div className="flex items-center gap-1">
                           <Users className="h-3 w-3 text-neutral-400" />
-                          <span className="text-xs text-neutral-600">{g.minPlayers ?? '—'}–{g.maxPlayers ?? '—'}</span>
+                          <span className="text-xs text-neutral-600">{g.minPlayers??'—'}–{g.maxPlayers??'—'}</span>
                         </div>
-                        <p className="text-[10px] text-neutral-400 mt-0.5 pl-4">
-                          {g.minTeams ?? '—'}–{g.maxTeams ?? '—'} teams
-                        </p>
-                        {g.isFull && (
-                          <span className="text-[9px] bg-red-100 text-red-500 px-1.5 py-0.5 rounded-full mt-0.5 inline-block">Full</span>
-                        )}
+                        {g.isFull && <span className="text-[9px] bg-red-100 text-red-500 px-1.5 py-0.5 rounded-full mt-0.5 inline-block">Full</span>}
                       </td>
-
-                      {/* Date */}
-                      <td className="px-3 py-3">
+                      <td className="px-4 py-3">
                         <span className="text-[10px] text-neutral-500 whitespace-nowrap">
                           {g.sportDateDisplay || (g.sportDate ? new Date(g.sportDate).toLocaleDateString('en-IN') : '—')}
                         </span>
                       </td>
-
-                      {/* Status */}
-                      <td className="px-3 py-3">
-                        {/* Available badge */}
-                        <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium inline-block
-                          ${g.isAvailable ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-500'}`}>
-                          {g.isAvailable ? 'available' : 'unavailable'}
-                        </span>
-                        {/* Active toggle */}
-                        <button
-                          onClick={() => handleToggle(g)}
-                          disabled={togglingId === id}
-                          className={`mt-1 text-[10px] px-2 py-0.5 rounded-full font-medium cursor-pointer disabled:opacity-60 transition-all block
-                            ${g.isActive ? 'bg-purple-100 text-purple-700 hover:bg-purple-200' : 'bg-neutral-100 text-neutral-500 hover:bg-neutral-200'}`}
-                        >
-                          {togglingId === id ? '...' : g.isActive ? 'active' : 'inactive'}
+                      <td className="px-4 py-3">
+                        <button onClick={() => handleToggle(g)} disabled={togglingId===id}
+                          className={`text-[10px] px-2 py-0.5 rounded-full font-medium cursor-pointer disabled:opacity-60 transition-all
+                            ${g.isActive ? 'bg-purple-100 text-purple-700 hover:bg-purple-200' : 'bg-neutral-100 text-neutral-500 hover:bg-neutral-200'}`}>
+                          {togglingId===id ? '...' : g.isActive ? 'Active' : 'Inactive'}
                         </button>
                       </td>
-
-                      {/* Actions */}
-                      <td className="px-3 py-3">
+                      <td className="px-4 py-3">
                         <div className="flex items-center gap-1.5">
-                          <button onClick={() => setViewGround(g)}
-                            className="p-1.5 rounded-lg bg-blue-50 border border-blue-200 text-blue-500 hover:bg-blue-100">
-                            <Eye className="h-3.5 w-3.5" />
-                          </button>
-                          <button onClick={() => { setEditGround(g); setShowForm(true) }}
-                            className="p-1.5 rounded-lg bg-amber-50 border border-amber-200 text-amber-500 hover:bg-amber-100">
-                            <Edit className="h-3.5 w-3.5" />
-                          </button>
-                          <button onClick={() => setDeleteTarget({ id, name: g.name })}
-                            className="p-1.5 rounded-lg bg-red-50 border border-red-200 text-red-500 hover:bg-red-100">
-                            <Trash2 className="h-3.5 w-3.5" />
-                          </button>
+                          <button onClick={() => setViewGround(g)} className="p-1.5 rounded-lg bg-blue-50 border border-blue-200 text-blue-500 hover:bg-blue-100"><Eye className="h-3.5 w-3.5" /></button>
+                          <button onClick={() => { setEditGround(g); setShowForm(true) }} className="p-1.5 rounded-lg bg-amber-50 border border-amber-200 text-amber-500 hover:bg-amber-100"><Edit className="h-3.5 w-3.5" /></button>
+                          <button onClick={() => setDeleteTarget({ id, name: g.name })} className="p-1.5 rounded-lg bg-red-50 border border-red-200 text-red-500 hover:bg-red-100"><Trash2 className="h-3.5 w-3.5" /></button>
                         </div>
                       </td>
                     </tr>
@@ -987,7 +827,6 @@ export default function SportGrounds() {
               </tbody>
             </table>
           </div>
-
           {filtered.length > 0 && (
             <div className="px-5 py-3 border-t border-neutral-100 text-xs text-neutral-400">
               Showing {filtered.length} of {grounds.length} grounds
@@ -996,9 +835,7 @@ export default function SportGrounds() {
         </div>
       )}
 
-      {/* ════════════════════════════════════════════
-          GRID VIEW
-      ════════════════════════════════════════════ */}
+      {/* GRID VIEW */}
       {!loading && viewMode === 'grid' && (
         <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
           {filtered.length === 0 ? (
@@ -1011,83 +848,44 @@ export default function SportGrounds() {
             return (
               <div key={id} className="bg-white rounded-2xl border border-neutral-200 hover:border-purple-300 hover:shadow-sm transition-all overflow-hidden">
                 {g.image
-                  ? <img src={g.image} alt={g.name} className="w-full h-36 object-cover" onError={e => e.target.style.display = 'none'} />
+                  ? <img src={g.image} alt={g.name} className="w-full h-36 object-cover" onError={e=>e.target.style.display='none'} />
                   : <div className="w-full h-28 bg-purple-50 flex items-center justify-center"><MapPin className="h-8 w-8 text-purple-300" /></div>
                 }
                 <div className="p-4">
                   <div className="flex items-start justify-between mb-2">
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-bold text-black truncate">{g.name}</p>
-                      {g.price && <p className="text-xs font-semibold text-green-700 mt-0.5">₹{g.price}</p>}
-                      {g.isPrivate && (
-                        <span className="inline-flex items-center gap-1 text-[9px] bg-amber-50 border border-amber-200 text-amber-600 px-1.5 py-0.5 rounded mt-1">
-                          <Lock className="h-2.5 w-2.5" /> private
-                        </span>
+                      <p className="text-[10px] text-neutral-400 mt-0.5">{g.sportDateDisplay || '—'}</p>
+                      {g.price && (
+                        <p className="text-xs font-semibold text-green-700 mt-0.5">₹{g.price}</p>
                       )}
                     </div>
-                    <button onClick={() => handleToggle(g)} disabled={togglingId === id}
+                    <button onClick={() => handleToggle(g)} disabled={togglingId===id}
                       className={`ml-2 text-[10px] px-2 py-0.5 rounded-full font-medium cursor-pointer disabled:opacity-60 shrink-0
                         ${g.isActive ? 'bg-purple-100 text-purple-700' : 'bg-neutral-100 text-neutral-500'}`}>
-                      {togglingId === id ? '...' : g.isActive ? 'active' : 'inactive'}
+                      {togglingId===id ? '...' : g.isActive ? 'Active' : 'Inactive'}
                     </button>
                   </div>
-
-                  {/* Badges */}
                   <div className="flex flex-wrap gap-1.5 mb-3">
-                    <span className={`text-[10px] px-2 py-0.5 rounded-full ${sportBadge(g.sportId)}`}>{getName(g.sportId)}</span>
+                    <span className="text-[10px] bg-purple-50 text-purple-700 px-2 py-0.5 rounded-full">{getName(g.sportId)}</span>
                     <span className="text-[10px] bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full">{getName(g.venueId)}</span>
-                    <span className={`text-[10px] px-2 py-0.5 rounded-full ${catBadge(g.categoryId)}`}>{getName(g.categoryId)}</span>
+                    <span className="text-[10px] bg-blue-50 text-blue-600 px-2 py-0.5 rounded-full">{getName(g.categoryId)}</span>
                     <span className="text-[10px] bg-emerald-50 text-emerald-600 px-2 py-0.5 rounded-full">{getName(g.academyId)}</span>
-                    {!g.isAvailable && <span className="text-[10px] bg-red-50 text-red-500 px-2 py-0.5 rounded-full">unavailable</span>}
-                    {g.isFull && <span className="text-[10px] bg-red-50 text-red-500 px-2 py-0.5 rounded-full">full</span>}
+                    {g.isFull && <span className="text-[10px] bg-red-50 text-red-500 px-2 py-0.5 rounded-full">Full</span>}
                   </div>
-
-                  {/* Time info grid */}
-                  <div className="grid grid-cols-2 gap-1.5 text-[10px] mb-3">
-                    {/* Opening time */}
-                    <div className="flex items-center gap-1 bg-green-50 rounded-lg px-2 py-1.5">
-                      <Clock className="h-3 w-3 text-green-500 shrink-0" />
-                      <div>
-                        <p className="text-[9px] text-green-500 font-bold uppercase">Opens</p>
-                        <p className="text-[11px] font-medium text-green-700">{g.openingTime || '—'}</p>
-                      </div>
-                    </div>
-                    {/* Closing time */}
-                    <div className="flex items-center gap-1 bg-red-50 rounded-lg px-2 py-1.5">
-                      <Clock className="h-3 w-3 text-red-400 shrink-0" />
-                      <div>
-                        <p className="text-[9px] text-red-400 font-bold uppercase">Closes</p>
-                        <p className="text-[11px] font-medium text-red-600">{g.closingTime || '—'}</p>
-                      </div>
-                    </div>
-                    {/* Sport timing */}
-                    <div className="flex items-center gap-1 text-neutral-500">
-                      <Clock className="h-3 w-3 text-purple-400 shrink-0" />
-                      <span>{g.sportTimingDisplay || '—'}</span>
-                    </div>
-                    {/* Players */}
-                    <div className="flex items-center gap-1 text-neutral-500">
-                      <Users className="h-3 w-3" />
-                      <span>{g.minPlayers ?? '—'}–{g.maxPlayers ?? '—'} players</span>
-                    </div>
-                    {/* Coach */}
-                    <div className="flex items-center gap-1 text-neutral-500">
-                      <User className="h-3 w-3" />
-                      <span className="truncate">{g.coach || '—'}</span>
-                    </div>
-                    {/* Duration */}
-                    <div className="flex items-center gap-1 text-neutral-500">
-                      <Calendar className="h-3 w-3" />
-                      <span>{g.sportDurationInHours ? `${g.sportDurationInHours}h` : '—'}</span>
-                    </div>
+                  <div className="grid grid-cols-2 gap-1.5 text-[10px] text-neutral-500 mb-3">
+                    <div className="flex items-center gap-1"><Clock className="h-3 w-3" />{g.sportTimingDisplay||g.openingTime||'—'}</div>
+                    <div className="flex items-center gap-1"><Users className="h-3 w-3" />{g.minPlayers??'—'}–{g.maxPlayers??'—'} players</div>
+                    <div className="flex items-center gap-1"><User className="h-3 w-3" />{g.coach||'—'}</div>
+                    <div className="flex items-center gap-1"><Calendar className="h-3 w-3" />{g.sportDurationInHours ? `${g.sportDurationInHours}h` : '—'}</div>
                   </div>
-
-                  {/* Date */}
-                  {g.sportDateDisplay && (
-                    <p className="text-[10px] text-neutral-400 mb-3">{g.sportDateDisplay}</p>
+                  {g.features?.length > 0 && (
+                    <div className="flex flex-wrap gap-1 mb-3">
+                      {g.features.map((f,i) => (
+                        <span key={i} className="text-[9px] bg-amber-50 text-amber-600 border border-amber-100 px-1.5 py-0.5 rounded-full">{f.title}</span>
+                      ))}
+                    </div>
                   )}
-
-                  {/* Action buttons */}
                   <div className="flex gap-2 pt-3 border-t border-neutral-100">
                     <button onClick={() => setViewGround(g)}
                       className="flex-1 flex items-center justify-center gap-1 text-xs text-blue-500 border border-blue-200 bg-blue-50 rounded-lg py-1.5 hover:bg-blue-100">
