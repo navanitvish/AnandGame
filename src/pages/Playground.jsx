@@ -434,7 +434,7 @@ function GroundFormModal({ show, editGround, venues, sports, categories, academy
           <div>
             <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-3">Basic Info</p>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <Field label="Ground Name *" k="name"  ph="e.g. Cricket Ground 1" {...fieldProps} />
+              <Field label="Game Name *" k="name"  ph="e.g. Cricket game 1" {...fieldProps} />
               <Field label="Coach"         k="coach" ph="Coach name"             {...fieldProps} />
               <Field label="Price (₹)"     k="price" type="number" ph="500"      {...fieldProps} />
               <div className="sm:col-span-2">
@@ -670,7 +670,7 @@ export default function SportGrounds() {
           </button>
           <button onClick={() => { setEditGround(null); setShowForm(true) }}
             className="flex items-center gap-2 bg-purple-600 hover:bg-purple-700 text-white text-sm font-semibold px-4 py-2.5 rounded-xl">
-            <Plus className="h-4 w-4" /> Add Ground
+            <Plus className="h-4 w-4" /> Add Games
           </button>
         </div>
       </div>
