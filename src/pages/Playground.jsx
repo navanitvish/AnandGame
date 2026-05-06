@@ -477,7 +477,7 @@ function GroundFormModal({ show, editGround, venues, sports, categories, academy
                 <label className={labelCls}>Level</label>
                 <select value={form.level} onChange={e => set('level', e.target.value)} className={inputCls}>
                   <option value="">Select level</option>
-                  {['beginner','Intermediate','Advanced','Professional'].map(l => <option key={l}>{l}</option>)}
+                  {['beginner','intermediate','advanced','professional'].map(l => <option key={l}>{l}</option>)}
                 </select>
               </div>
               <BoolSel label="Is Private"   k="isPrivate"   form={form} set={set} />

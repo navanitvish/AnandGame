@@ -505,7 +505,7 @@ export default function RevenueShare() {
                         <span className={`text-xs font-semibold ${paid ? 'text-black' : 'text-neutral-300'}`}>
                           {fmtCurrency(adm)}
                         </span>
-                        {!paid && <span className="text-[9px] text-neutral-300">(unpaid)</span>}
+                        {!paid && <span className="text-[9px] text-neutral-300"></span>}
                       </div>
                     </td>
 
@@ -516,7 +516,7 @@ export default function RevenueShare() {
                         <span className={`text-xs font-semibold ${paid ? 'text-purple-700' : 'text-neutral-300'}`}>
                           {fmtCurrency(acad)}
                         </span>
-                        {!paid && <span className="text-[9px] text-neutral-300">(unpaid)</span>}
+                        {!paid && <span className="text-[9px] text-neutral-300"></span>}
                       </div>
                     </td>
 

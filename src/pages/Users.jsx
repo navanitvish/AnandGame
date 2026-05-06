@@ -153,7 +153,7 @@ function UserRow({ user, index, selected, onSelect, onDelete }) {
       {/* User */}
       <td className="px-4 py-3">
         <div>
-          <p className="text-sm capitalize font-medium text-black leading-none">{user.name}</p>
+          <p className="text-sm capitalize font-medium text-black leading-none">{user.name  || 'No fill name'}</p>
           <p className="text-xs text-neutral-400 mt-0.5">{user.email}</p>
         </div>
       </td>
