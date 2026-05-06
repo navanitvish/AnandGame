@@ -451,8 +451,8 @@ function GroundFormModal({ show, editGround, venues, sports, categories, academy
           <div>
             <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-3">Timing</p>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-              <TimeField label="Opening Time"  k="openingTime"          {...fieldProps} />
-              <TimeField label="Closing Time"  k="closingTime"          {...fieldProps} />
+              <TimeField label="start Time"  k="openingTime"          {...fieldProps} />
+              <TimeField label="end Time"  k="closingTime"          {...fieldProps} />
               <Field     label="Duration (hrs)" k="sportDurationInHours" type="number" ph="2" {...fieldProps} />
               <Field     label="Sport Date"     k="sportDate"            type="datetime-local" {...fieldProps} />
             </div>
