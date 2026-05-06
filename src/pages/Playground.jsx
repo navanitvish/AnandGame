@@ -401,7 +401,7 @@ function GroundFormModal({ show, editGround, venues, sports, categories, academy
               {editGround ? <Edit className="h-4 w-4 text-amber-500" /> : <Plus className="h-4 w-4 text-purple-600" />}
             </div>
             <div>
-              <h2 className="text-sm font-bold text-gray-900">{editGround ? 'Edit Ground' : 'Add New Ground'}</h2>
+              <h2 className="text-sm font-bold text-gray-900">{editGround ? 'Edit Game' : 'Add New Game'}</h2>
               <p className="text-xs text-gray-400">* required fields</p>
             </div>
           </div>
@@ -451,8 +451,8 @@ function GroundFormModal({ show, editGround, venues, sports, categories, academy
           <div>
             <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-3">Timing</p>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-              <TimeField label="start Time"  k="openingTime"          {...fieldProps} />
-              <TimeField label="end Time"  k="closingTime"          {...fieldProps} />
+              <TimeField label="Start Time"  k="openingTime"          {...fieldProps} />
+              <TimeField label="End Time"  k="closingTime"          {...fieldProps} />
               <Field     label="Duration (hrs)" k="sportDurationInHours" type="number" ph="2" {...fieldProps} />
               <Field     label="Sport Date"     k="sportDate"            type="datetime-local" {...fieldProps} />
             </div>
