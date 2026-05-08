@@ -454,7 +454,7 @@ function GroundFormModal({ show, editGround, venues, sports, categories, academy
               <TimeField label="Start Time"  k="openingTime"          {...fieldProps} />
               <TimeField label="End Time"  k="closingTime"          {...fieldProps} />
               <Field     label="Duration (hrs)" k="sportDurationInHours" type="number" ph="2" {...fieldProps} />
-              <Field     label="Sport Date"     k="sportDate"            type="datetime-local" {...fieldProps} />
+              <Field     label="Sport Date"     k="sportDate"            type="date" {...fieldProps} />
             </div>
           </div>
 
@@ -791,7 +791,7 @@ export default function SportGrounds() {
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-1">
                           <Clock className="h-3 w-3 text-neutral-400" />
-                          <span className="text-[10px] text-neutral-500">{g.sportTimingDisplay || g.openingTime || '—'}</span>
+                          <span className="text-[10px] text-neutral-500">{ g.openingTime || '—'}-{ g.closingTime || '—'}</span>
                         </div>
                         {g.sportDurationInHours && <p className="text-[10px] text-neutral-300 mt-0.5 pl-4">{g.sportDurationInHours}h</p>}
                       </td>
@@ -804,7 +804,7 @@ export default function SportGrounds() {
                       </td>
                       <td className="px-4 py-3">
                         <span className="text-[10px] text-neutral-500 whitespace-nowrap">
-                          {g.sportDateDisplay || (g.sportDate ? new Date(g.sportDate).toLocaleDateString('en-IN') : '—')}
+                          { (g.sportDate ? new Date(g.sportDate).toLocaleDateString('en-IN') : '—')}
                         </span>
                       </td>
                       <td className="px-4 py-3">
