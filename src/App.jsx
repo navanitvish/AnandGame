@@ -52,7 +52,7 @@ export default function App() {
 
           {/* academy  */}
             <Route path="/booking" element={<AcaBookings />} />
-          <Route path="/slots" element={<ModernSlotUI />} />
+          <Route path="/timeslot" element={<ModernSlotUI />} />
           <Route path="/bookings" element={<Bookings />} />
              <Route path="/courtbooking" element={<CourtBookings/>} />
           
