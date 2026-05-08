@@ -11,9 +11,7 @@ const AVATAR_COLORS = [
 ]
 const ROLE_STYLES = {
   academy_manager: 'bg-purple-100 text-purple-800',
-  coach:           'bg-teal-100 text-teal-800',
-  admin:           'bg-rose-100 text-rose-800',
-  user:            'bg-blue-100 text-blue-800',
+
 }
 const LOGIN_TYPE_STYLES = {
   password: 'bg-neutral-100 text-neutral-700',
