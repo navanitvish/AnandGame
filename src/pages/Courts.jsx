@@ -514,26 +514,26 @@ function CourtRow({ court, idx, onView, onEdit, onDelete, onToggle, togglingId }
         </td>
 
         {/* Ground Hours */}
-        <td className="px-4 py-3 whitespace-nowrap">
+        {/* <td className="px-4 py-3 whitespace-nowrap">
           {g?.openingTime && g?.closingTime ? (
             <div className="flex items-center gap-1 text-[10px] text-neutral-500">
               <Clock className="h-3 w-3 text-neutral-300 shrink-0" />
               <span>{g.openingTime} – {g.closingTime}</span>
             </div>
           ) : <span className="text-neutral-300 text-xs">—</span>}
-        </td>
+        </td> */}
 
         {/* Courts in ground */}
-        <td className="px-4 py-3 text-center">
+        {/* <td className="px-4 py-3 text-center">
           {g?.noOfCourts != null ? (
             <span className="text-xs font-semibold text-neutral-700 bg-neutral-100 px-2 py-0.5 rounded-full">
               {g.noOfCourts}
             </span>
           ) : <span className="text-neutral-300 text-xs">—</span>}
-        </td>
+        </td> */}
 
         {/* Sports in Ground (chips) */}
-        <td className="px-4 py-3 max-w-[200px]">
+        {/* <td className="px-4 py-3 max-w-[200px]">
           <div className="flex flex-wrap gap-1">
             {Array.isArray(g?.sports) && g.sports.length > 0
               ? g.sports.map(sp => (
@@ -544,7 +544,7 @@ function CourtRow({ court, idx, onView, onEdit, onDelete, onToggle, togglingId }
                 ))
               : <span className="text-neutral-300 text-xs">—</span>}
           </div>
-        </td>
+        </td> */}
 
         {/* Price */}
         <td className="px-4 py-3">
@@ -773,8 +773,8 @@ export default function Courts() {
   ]
 
   const TABLE_HEADERS = [
-    '#', '', 'Court', 'Ground', 'Academy', 'Sport', 'Ground Hours',
-    'No. of Courts', 'Sports in Ground', 'Price/hr', 'Court Status', 'Active', 'Actions'
+    '#', '', 'Court', 'Ground', 'Academy', 'Sport', 
+    'Price/hr', 'Court Status', 'Active', 'Actions'
   ]
 
   return (
@@ -1001,7 +1001,7 @@ export default function Courts() {
                         </div>
                       )}
                       {/* All sports in ground */}
-                      {Array.isArray(g.sports) && g.sports.length > 0 && (
+                      {/* {Array.isArray(g.sports) && g.sports.length > 0 && (
                         <div className="flex flex-wrap gap-1 pt-1">
                           {g.sports.map(sp => (
                             <div key={sp._id} className="flex items-center gap-1 bg-white rounded px-1 py-0.5 border border-neutral-200">
@@ -1010,7 +1010,7 @@ export default function Courts() {
                             </div>
                           ))}
                         </div>
-                      )}
+                      )} */}
                     </div>
                   )}
 

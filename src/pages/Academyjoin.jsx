@@ -18,7 +18,7 @@ const LOGIN_TYPE_STYLES = {
   google:   'bg-red-50 text-red-700',
   apple:    'bg-gray-100 text-gray-700',
 }
-const ROLES = ['academy_manager', 'coach', 'admin', 'user']
+const ROLES = ['academy_manager']
 
 // ─── Update User API ──────────────────────────────────────────────────────────
 /**

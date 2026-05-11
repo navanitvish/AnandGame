@@ -317,7 +317,7 @@ function GroundFormModal({ show, editGround, venues, sports, categories, academy
 
   const validate = () => {
     const e = {}
-    if (!form.venueId)     e.venueId    = 'Venue required'
+    // if (!form.venueId)     e.venueId    = 'Venue required'
     if (!form.sportId)     e.sportId    = 'Sport required'
     if (!form.categoryId)  e.categoryId = 'Category required'
     if (!editGround && !form.academyId) e.academyId = 'Academy required'
@@ -416,7 +416,7 @@ function GroundFormModal({ show, editGround, venues, sports, categories, academy
           <div>
             <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-3">Linked References *</p>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <DropDown label="Venue *"    k="venueId"    options={venues}         ph="Select venue"    {...fieldProps} />
+              <DropDown label="Venue (optional)"    k="venueId"    options={venues}         ph="Select venue"    {...fieldProps} />
               <DropDown label="Sport *"    k="sportId"    options={sports}         ph="Select sport"    {...fieldProps} />
               <DropDown label="Category *" k="categoryId" options={categories}     ph="Select category" {...fieldProps} />
               <DropDown

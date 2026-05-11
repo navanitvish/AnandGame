@@ -40,13 +40,14 @@ const adminLinks = [
   { path: '/dashboard', label: 'Dashboard', sub: 'Overview & analytics', icon: LayoutDashboard },
   { path: '/users', label: 'Users', sub: 'Manage all users', icon: Users },
   { path: '/academyjoin', label: 'Academy Join', sub: 'Manage all academyjoin', icon: Users },
-
+    { path: '/venue', label: 'Venue', sub: 'Manage venues', icon: Building2 },
+ { path: '/grounds', label: 'Grounds', sub: 'Manage Grounds', icon: Clock },
   { path: '/catgeory', label: 'Category', sub: 'Manage categories', icon: Tag },
   { path: '/games', label: 'Games', sub: 'All active games', icon: Gamepad2 },
-  { path: '/venue', label: 'Venue', sub: 'Manage venues', icon: Building2 },
+
   { path: '/join-games', label: 'Join Games', sub: 'City-wise grounds', icon: Dumbbell },
     { path: '/coaching', label: 'Coaching', sub: 'Manage coaching', icon: Image },
-  { path: '/grounds', label: 'Grounds', sub: 'Manage Grounds', icon: Clock },
+ 
   { path: '/courts', label: 'Courts', sub: 'Manage Courts', icon: Brain },
 
 
